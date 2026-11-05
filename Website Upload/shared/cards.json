@@ -1,0 +1,1795 @@
+{
+  "version": 1,
+  "cards": [
+    {
+      "id": "LD-001",
+      "name": "Celestine, Radiant Dragon",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "LIGHT",
+      "race": "Dragon",
+      "level": 8,
+      "atk": 2900,
+      "def": 2400,
+      "rarity": "ultra",
+      "text": "A dragon born from the first dawn. Its scales scatter starlight, and its breath can unmake mountains.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 1.35,
+        "summon": "grand_portal",
+        "attack": "radiant_beam",
+        "aura": "light",
+        "palette": {
+          "body": "#eef5ff",
+          "shade": "#a9c3e6",
+          "accent": "#6fc3ff",
+          "glow": "#c9ecff",
+          "eye": "#2b9bff",
+          "wing": "#bcdcff"
+        }
+      }
+    },
+    {
+      "id": "LD-002",
+      "name": "Lumen Sentinel",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "LIGHT",
+      "race": "Warrior",
+      "level": 4,
+      "atk": 1700,
+      "def": 1200,
+      "rarity": "common",
+      "text": "A knight sworn to the lighthouse citadel. Its blade is forged from a captured sunbeam.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "light",
+        "palette": {
+          "body": "#f1e3b0",
+          "shade": "#b49a54",
+          "accent": "#ffffff",
+          "glow": "#fff3c4",
+          "eye": "#7fe0ff",
+          "cloth": "#3a6fd8"
+        }
+      }
+    },
+    {
+      "id": "LD-003",
+      "name": "Skyreach Hawk",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "WIND",
+      "race": "Winged Beast",
+      "level": 4,
+      "atk": 1500,
+      "def": 1100,
+      "rarity": "common",
+      "text": "It rides the jet streams above the clouds and strikes before its shadow touches the ground.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "bird",
+        "scale": 0.95,
+        "summon": "wind_swirl",
+        "attack": "dive",
+        "aura": "wind",
+        "palette": {
+          "body": "#3fb6a8",
+          "shade": "#1f6f6a",
+          "accent": "#f3d36b",
+          "glow": "#bff7ef",
+          "eye": "#ffcf40",
+          "wing": "#2a8f88"
+        }
+      }
+    },
+    {
+      "id": "LD-004",
+      "name": "Thornback Golem",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "EARTH",
+      "race": "Rock",
+      "level": 4,
+      "atk": 1300,
+      "def": 2000,
+      "rarity": "common",
+      "text": "Ancient brambles grew through this sleeping guardian until stone and thorn became one.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "golem",
+        "scale": 1.05,
+        "summon": "earth_rise",
+        "attack": "slam",
+        "aura": "earth",
+        "palette": {
+          "body": "#8a7b66",
+          "shade": "#564b3d",
+          "accent": "#5e9a45",
+          "glow": "#d5ff9a",
+          "eye": "#b6ff5c"
+        }
+      }
+    },
+    {
+      "id": "LD-005",
+      "name": "Prism Fairy",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "LIGHT",
+      "race": "Fairy",
+      "level": 3,
+      "atk": 1000,
+      "def": 1500,
+      "rarity": "rare",
+      "text": "Wherever it flutters, light splits into every color at once.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "fairy",
+        "scale": 0.85,
+        "summon": "light_pillar",
+        "attack": "shards",
+        "aura": "light",
+        "palette": {
+          "body": "#ffe9f6",
+          "shade": "#d59ac0",
+          "accent": "#9ff3ff",
+          "glow": "#ffffff",
+          "eye": "#7a5cff",
+          "wing": "#bdf6ff"
+        }
+      }
+    },
+    {
+      "id": "LD-006",
+      "name": "Ember Drake",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "FIRE",
+      "race": "Dragon",
+      "level": 5,
+      "atk": 2100,
+      "def": 1600,
+      "rarity": "rare",
+      "text": "A young drake that nests in cooling lava. Its sneezes have toppled watchtowers.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 1.05,
+        "summon": "flame_burst",
+        "attack": "fire_breath",
+        "aura": "fire",
+        "palette": {
+          "body": "#d9502b",
+          "shade": "#7d2414",
+          "accent": "#ffb347",
+          "glow": "#ffd27a",
+          "eye": "#fff06a",
+          "wing": "#b8361f"
+        }
+      }
+    },
+    {
+      "id": "LD-007",
+      "name": "Nyxar, Void Sorcerer",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Spellcaster",
+      "level": 7,
+      "atk": 2400,
+      "def": 2000,
+      "rarity": "ultra",
+      "text": "A sorcerer who studied the silence between stars, and returned speaking its language.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "sorcerer",
+        "scale": 1.15,
+        "summon": "arcane_circle",
+        "attack": "void_orb",
+        "aura": "dark",
+        "palette": {
+          "body": "#4b2a7a",
+          "shade": "#24123f",
+          "accent": "#c77dff",
+          "glow": "#e7b8ff",
+          "eye": "#ff5cf0",
+          "cloth": "#2d6fd1",
+          "skin": "#c9b6e8"
+        }
+      }
+    },
+    {
+      "id": "LD-008",
+      "name": "Gloom Imp",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Fiend",
+      "level": 3,
+      "atk": 1100,
+      "def": 800,
+      "rarity": "common",
+      "text": "It giggles in empty hallways and steals the last candle in every house.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "imp",
+        "scale": 0.8,
+        "summon": "shadow_pool",
+        "attack": "shadow_bolt",
+        "aura": "dark",
+        "palette": {
+          "body": "#5a3b6e",
+          "shade": "#2e1a3b",
+          "accent": "#ff7a3c",
+          "glow": "#ffb27a",
+          "eye": "#ffe14a",
+          "wing": "#3a2147"
+        }
+      }
+    },
+    {
+      "id": "LD-009",
+      "name": "Abyssal Serpent",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "WATER",
+      "race": "Sea Serpent",
+      "level": 4,
+      "atk": 1600,
+      "def": 1300,
+      "rarity": "common",
+      "text": "Sailors claim the tide is just this serpent breathing in its sleep.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "serpent",
+        "scale": 1.0,
+        "summon": "water_spout",
+        "attack": "water_jet",
+        "aura": "water",
+        "palette": {
+          "body": "#2f6fb3",
+          "shade": "#163a63",
+          "accent": "#7ef0d8",
+          "glow": "#bff4ff",
+          "eye": "#ffef6a",
+          "fin": "#56c7d6"
+        }
+      }
+    },
+    {
+      "id": "LD-010",
+      "name": "Grave Knight",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Zombie",
+      "level": 4,
+      "atk": 1650,
+      "def": 1000,
+      "rarity": "common",
+      "text": "Its oath outlived its body. Its armor still marches to a war that ended centuries ago.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "shadow_pool",
+        "attack": "blade_dash",
+        "aura": "dark",
+        "palette": {
+          "body": "#5c6470",
+          "shade": "#2c3038",
+          "accent": "#7dff9a",
+          "glow": "#b8ffc8",
+          "eye": "#6dff8a",
+          "cloth": "#5a1e2a"
+        }
+      }
+    },
+    {
+      "id": "LD-011",
+      "name": "Shade Apprentice",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Spellcaster",
+      "level": 4,
+      "atk": 1400,
+      "def": 1400,
+      "rarity": "common",
+      "text": "A student of the void arts who has learned exactly enough to be dangerous.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "sorcerer",
+        "scale": 0.9,
+        "summon": "arcane_circle",
+        "attack": "void_orb",
+        "aura": "dark",
+        "palette": {
+          "body": "#1f5560",
+          "shade": "#0e2b31",
+          "accent": "#5cf2d6",
+          "glow": "#b5fff1",
+          "eye": "#5cf2d6",
+          "cloth": "#7a3fa8",
+          "skin": "#b8d6d0"
+        }
+      }
+    },
+    {
+      "id": "LD-012",
+      "name": "Obsidian Wyrm",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Dragon",
+      "level": 6,
+      "atk": 2300,
+      "def": 1800,
+      "rarity": "rare",
+      "text": "Forged in a volcano that erupts only during eclipses. Its flame burns black at the core.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 1.15,
+        "summon": "flame_burst",
+        "attack": "dark_flame",
+        "aura": "dark",
+        "palette": {
+          "body": "#2a2230",
+          "shade": "#120d16",
+          "accent": "#ff3b4a",
+          "glow": "#ff8a7a",
+          "eye": "#ff2030",
+          "wing": "#3c2232"
+        }
+      }
+    },
+    {
+      "id": "LD-F01",
+      "name": "Aegis Gryphon Knight",
+      "type": "monster",
+      "subtype": "fusion",
+      "attribute": "LIGHT",
+      "race": "Winged Beast",
+      "level": 7,
+      "atk": 2600,
+      "def": 2100,
+      "rarity": "ultra",
+      "text": "Lumen Sentinel + Skyreach Hawk. When knight and hawk swear the same oath, the sky itself takes up arms.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "materials": [
+        "LD-002",
+        "LD-003"
+      ],
+      "visual": {
+        "rig": "bird",
+        "variant": "armored",
+        "scale": 1.3,
+        "summon": "fusion_vortex",
+        "attack": "dive",
+        "aura": "light",
+        "palette": {
+          "body": "#ecdcae",
+          "shade": "#a88a4a",
+          "accent": "#e0a43a",
+          "glow": "#fff3c8",
+          "eye": "#5fd0ff",
+          "wing": "#f7f1de",
+          "cloth": "#3567c9"
+        }
+      }
+    },
+    {
+      "id": "LD-101",
+      "name": "Chalice of Plenty",
+      "type": "spell",
+      "subtype": "normal",
+      "rarity": "rare",
+      "text": "Draw 2 cards.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "draw",
+            "count": 2
+          }
+        ]
+      },
+      "visual": {
+        "fx": "draw",
+        "element": "light",
+        "palette": {
+          "a": "#ffd86b",
+          "b": "#7ae7ff"
+        }
+      }
+    },
+    {
+      "id": "LD-102",
+      "name": "Void Rift",
+      "type": "spell",
+      "subtype": "normal",
+      "rarity": "ultra",
+      "text": "Destroy all monsters on the field.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "destroy_all_monsters"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "void_rift",
+        "element": "darkness",
+        "palette": {
+          "a": "#1a0630",
+          "b": "#b45cff"
+        }
+      }
+    },
+    {
+      "id": "LD-103",
+      "name": "Arc Bolt",
+      "type": "spell",
+      "subtype": "normal",
+      "rarity": "rare",
+      "text": "Target 1 monster your opponent controls; destroy it.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "target": {
+          "zone": "monster",
+          "side": "opponent"
+        },
+        "ops": [
+          {
+            "op": "destroy_target"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "lightning",
+        "element": "lightning",
+        "palette": {
+          "a": "#fff7a8",
+          "b": "#6ab8ff"
+        }
+      }
+    },
+    {
+      "id": "LD-104",
+      "name": "Rite of Return",
+      "type": "spell",
+      "subtype": "normal",
+      "rarity": "ultra",
+      "text": "Target 1 monster in either player's Graveyard; Special Summon it to your field in Attack Position.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "target": {
+          "zone": "gy",
+          "side": "any",
+          "type": "monster"
+        },
+        "ops": [
+          {
+            "op": "special_summon_target"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "revive",
+        "element": "light",
+        "palette": {
+          "a": "#9effc4",
+          "b": "#ffffff"
+        }
+      }
+    },
+    {
+      "id": "LD-105",
+      "name": "Veil of Halting Blades",
+      "type": "spell",
+      "subtype": "continuous",
+      "rarity": "rare",
+      "text": "Your opponent cannot declare attacks. Send this card to the Graveyard at the end of your opponent's 3rd turn after activation.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "lock_attacks",
+            "turns": 3
+          }
+        ]
+      },
+      "visual": {
+        "fx": "blades",
+        "element": "light",
+        "palette": {
+          "a": "#fff3a0",
+          "b": "#ffd040"
+        }
+      }
+    },
+    {
+      "id": "LD-106",
+      "name": "Union Rite",
+      "type": "spell",
+      "subtype": "normal",
+      "rarity": "rare",
+      "text": "Fusion Summon 1 Fusion Monster from your Extra Deck, using monsters from your hand or field as Fusion Materials.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "fusion_summon"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "fusion",
+        "element": "energy",
+        "palette": {
+          "a": "#ff9bf0",
+          "b": "#7af0ff"
+        }
+      }
+    },
+    {
+      "id": "LD-107",
+      "name": "Sunken Abyss",
+      "type": "spell",
+      "subtype": "field",
+      "rarity": "rare",
+      "text": "All WATER monsters gain 500 ATK and DEF.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "field",
+            "env": "abyss",
+            "modifiers": [
+              {
+                "attribute": "WATER",
+                "atk": 500,
+                "def": 500
+              }
+            ]
+          }
+        ]
+      },
+      "visual": {
+        "fx": "field",
+        "element": "water",
+        "palette": {
+          "a": "#0b3d6b",
+          "b": "#58d0ff"
+        }
+      }
+    },
+    {
+      "id": "LD-108",
+      "name": "Ember Caldera",
+      "type": "spell",
+      "subtype": "field",
+      "rarity": "rare",
+      "text": "All FIRE monsters gain 500 ATK and 300 DEF.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "field",
+            "env": "caldera",
+            "modifiers": [
+              {
+                "attribute": "FIRE",
+                "atk": 500,
+                "def": 300
+              }
+            ]
+          }
+        ]
+      },
+      "visual": {
+        "fx": "field",
+        "element": "fire",
+        "palette": {
+          "a": "#4a0d05",
+          "b": "#ff7a2a"
+        }
+      }
+    },
+    {
+      "id": "LD-109",
+      "name": "Radiant Sanctum",
+      "type": "spell",
+      "subtype": "field",
+      "rarity": "rare",
+      "text": "All LIGHT monsters gain 300 ATK and DEF.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "field",
+            "env": "sanctum",
+            "modifiers": [
+              {
+                "attribute": "LIGHT",
+                "atk": 300,
+                "def": 300
+              }
+            ]
+          }
+        ]
+      },
+      "visual": {
+        "fx": "field",
+        "element": "light",
+        "palette": {
+          "a": "#f6d27a",
+          "b": "#ffffff"
+        }
+      }
+    },
+    {
+      "id": "LD-110",
+      "name": "Umbral Expanse",
+      "type": "spell",
+      "subtype": "field",
+      "rarity": "rare",
+      "text": "All DARK monsters gain 300 ATK and DEF.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "field",
+            "env": "umbral",
+            "modifiers": [
+              {
+                "attribute": "DARK",
+                "atk": 300,
+                "def": 300
+              }
+            ]
+          }
+        ]
+      },
+      "visual": {
+        "fx": "field",
+        "element": "darkness",
+        "palette": {
+          "a": "#12051f",
+          "b": "#9b4dff"
+        }
+      }
+    },
+    {
+      "id": "LD-201",
+      "name": "Prism Ward",
+      "type": "trap",
+      "subtype": "normal",
+      "rarity": "ultra",
+      "text": "When an opponent's monster declares an attack: Destroy all Attack Position monsters your opponent controls.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "trigger": "opp_attack",
+      "effect": {
+        "ops": [
+          {
+            "op": "destroy_opponent_attack_position"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "prism_barrier",
+        "element": "light",
+        "palette": {
+          "a": "#d8f6ff",
+          "b": "#ff9bf0"
+        }
+      }
+    },
+    {
+      "id": "LD-202",
+      "name": "Echo Chamber",
+      "type": "trap",
+      "subtype": "normal",
+      "rarity": "rare",
+      "text": "When an opponent's monster declares an attack: Negate the attack, then inflict damage to your opponent equal to that monster's ATK.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "trigger": "opp_attack",
+      "effect": {
+        "ops": [
+          {
+            "op": "negate_attack"
+          },
+          {
+            "op": "damage_attacker_controller"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "echo_chamber",
+        "element": "energy",
+        "palette": {
+          "a": "#ffcf5c",
+          "b": "#a066ff"
+        }
+      }
+    },
+    {
+      "id": "LD-203",
+      "name": "Stasis Barrier",
+      "type": "trap",
+      "subtype": "normal",
+      "rarity": "common",
+      "text": "When an opponent's monster declares an attack: Negate the attack, then end the Battle Phase.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "trigger": "opp_attack",
+      "effect": {
+        "ops": [
+          {
+            "op": "negate_attack"
+          },
+          {
+            "op": "end_battle_phase"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "barrier",
+        "element": "barrier",
+        "palette": {
+          "a": "#7af0ff",
+          "b": "#ffffff"
+        }
+      }
+    },
+    {
+      "id": "LD-204",
+      "name": "Sinkhole Snare",
+      "type": "trap",
+      "subtype": "normal",
+      "rarity": "common",
+      "text": "When your opponent Normal or Tribute Summons a monster with 1000 or more ATK: Destroy that monster.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "trigger": "opp_summon",
+      "condition": {
+        "methods": [
+          "normal",
+          "tribute"
+        ],
+        "min_atk": 1000
+      },
+      "effect": {
+        "ops": [
+          {
+            "op": "destroy_summoned"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "sinkhole",
+        "element": "earth",
+        "palette": {
+          "a": "#3b2a1a",
+          "b": "#ffb347"
+        }
+      }
+    },
+    {
+      "id": "LD-013",
+      "name": "Magmaw Wyvern",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "FIRE",
+      "race": "Dragon",
+      "level": 7,
+      "atk": 2500,
+      "def": 2000,
+      "rarity": "ultra",
+      "text": "Its roar cracks open the earth so it can drink the magma beneath.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 1.3,
+        "summon": "flame_burst",
+        "attack": "fire_breath",
+        "aura": "fire",
+        "palette": {
+          "body": "#e2552a",
+          "shade": "#6e1c10",
+          "accent": "#ffcc4a",
+          "glow": "#ffe08a",
+          "eye": "#fff36a",
+          "wing": "#a8321c"
+        }
+      }
+    },
+    {
+      "id": "LD-014",
+      "name": "Pyre Hatchling",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "FIRE",
+      "race": "Dragon",
+      "level": 2,
+      "atk": 800,
+      "def": 600,
+      "rarity": "common",
+      "text": "Still learning to breathe fire. Mostly it breathes warm smoke and hiccups.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 0.8,
+        "summon": "flame_burst",
+        "attack": "fire_breath",
+        "aura": "fire",
+        "palette": {
+          "body": "#ff8a3c",
+          "shade": "#a03a18",
+          "accent": "#ffe07a",
+          "glow": "#fff0b0",
+          "eye": "#3a1a08",
+          "wing": "#e2602c"
+        }
+      }
+    },
+    {
+      "id": "LD-015",
+      "name": "Flamecrest Knight",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "FIRE",
+      "race": "Warrior",
+      "level": 4,
+      "atk": 1750,
+      "def": 1100,
+      "rarity": "common",
+      "text": "Its plume is a living flame that never goes out, even in the rain.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "fire",
+        "palette": {
+          "body": "#c8483a",
+          "shade": "#6a1a14",
+          "accent": "#ffc14a",
+          "glow": "#ffe6a0",
+          "eye": "#ffd23a",
+          "cloth": "#2a1a14"
+        }
+      }
+    },
+    {
+      "id": "LD-016",
+      "name": "Cinder Imp",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "FIRE",
+      "race": "Fiend",
+      "level": 3,
+      "atk": 1200,
+      "def": 700,
+      "rarity": "common",
+      "text": "It juggles embers it stole from blacksmiths' forges.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "imp",
+        "scale": 1.0,
+        "summon": "shadow_pool",
+        "attack": "shadow_bolt",
+        "aura": "fire",
+        "palette": {
+          "body": "#c2401e",
+          "shade": "#5a1608",
+          "accent": "#ffd24a",
+          "glow": "#ffe9a0",
+          "eye": "#fff36a",
+          "wing": "#7a2010"
+        }
+      }
+    },
+    {
+      "id": "LD-017",
+      "name": "Phoenix Kestrel",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "FIRE",
+      "race": "Winged Beast",
+      "level": 4,
+      "atk": 1600,
+      "def": 1000,
+      "rarity": "common",
+      "text": "Wherever it lands, the grass is left warm for an hour.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "bird",
+        "scale": 1.0,
+        "summon": "wind_swirl",
+        "attack": "dive",
+        "aura": "fire",
+        "palette": {
+          "body": "#ff6a2a",
+          "shade": "#8a2410",
+          "accent": "#ffd84a",
+          "glow": "#fff0a8",
+          "eye": "#ffe14a",
+          "wing": "#ffa53a"
+        }
+      }
+    },
+    {
+      "id": "LD-018",
+      "name": "Tidequeen Leviathan",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "WATER",
+      "race": "Sea Serpent",
+      "level": 8,
+      "atk": 2800,
+      "def": 2300,
+      "rarity": "ultra",
+      "text": "The ocean's oldest monarch. Storms bow to the sound of her voice.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "serpent",
+        "scale": 1.35,
+        "summon": "water_spout",
+        "attack": "water_jet",
+        "aura": "water",
+        "palette": {
+          "body": "#2aa6b8",
+          "shade": "#0e4a5e",
+          "accent": "#f4e6c8",
+          "glow": "#c8fbff",
+          "eye": "#ffd86a",
+          "fin": "#7ff0e0"
+        }
+      }
+    },
+    {
+      "id": "LD-019",
+      "name": "Coral Sentinel",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "WATER",
+      "race": "Rock",
+      "level": 4,
+      "atk": 1200,
+      "def": 2100,
+      "rarity": "common",
+      "text": "A reef that slowly stood up. Fish still live inside it.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "golem",
+        "scale": 1.0,
+        "summon": "earth_rise",
+        "attack": "slam",
+        "aura": "water",
+        "palette": {
+          "body": "#e07a8a",
+          "shade": "#7a3448",
+          "accent": "#3fc8b8",
+          "glow": "#bff8f0",
+          "eye": "#7ff0ff"
+        }
+      }
+    },
+    {
+      "id": "LD-020",
+      "name": "Reef Sprite",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "WATER",
+      "race": "Fairy",
+      "level": 3,
+      "atk": 900,
+      "def": 1300,
+      "rarity": "common",
+      "text": "It paints the coral with colours borrowed from the sunset.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "fairy",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "shards",
+        "aura": "water",
+        "palette": {
+          "body": "#c8f4ff",
+          "shade": "#5aa8c8",
+          "accent": "#3ad6c8",
+          "glow": "#ffffff",
+          "eye": "#2a6fd8",
+          "wing": "#9ff0ff"
+        }
+      }
+    },
+    {
+      "id": "LD-021",
+      "name": "Storm Petrel",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "WATER",
+      "race": "Winged Beast",
+      "level": 4,
+      "atk": 1500,
+      "def": 1000,
+      "rarity": "common",
+      "text": "Sailors say that when it sings, a wave three times taller follows.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "bird",
+        "scale": 1.0,
+        "summon": "wind_swirl",
+        "attack": "dive",
+        "aura": "water",
+        "palette": {
+          "body": "#4a7fb8",
+          "shade": "#1e3a62",
+          "accent": "#e8f0ff",
+          "glow": "#c8e8ff",
+          "eye": "#ffe14a",
+          "wing": "#2e5c94"
+        }
+      }
+    },
+    {
+      "id": "LD-022",
+      "name": "Deepsea Oracle",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "WATER",
+      "race": "Spellcaster",
+      "level": 4,
+      "atk": 1500,
+      "def": 1300,
+      "rarity": "common",
+      "text": "She reads the future in the currents, and rarely likes what she sees.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "sorcerer",
+        "scale": 1.0,
+        "summon": "arcane_circle",
+        "attack": "void_orb",
+        "aura": "water",
+        "palette": {
+          "body": "#1e6a8a",
+          "shade": "#0a2e40",
+          "accent": "#7ff0d8",
+          "glow": "#c8fff4",
+          "eye": "#7ff0d8",
+          "cloth": "#e8d8a8",
+          "skin": "#b8e0e8"
+        }
+      }
+    },
+    {
+      "id": "LD-023",
+      "name": "Granite Colossus",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "EARTH",
+      "race": "Rock",
+      "level": 8,
+      "atk": 2700,
+      "def": 3000,
+      "rarity": "ultra",
+      "text": "A mountain that learned to walk. Each step is felt three valleys away.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "golem",
+        "scale": 1.35,
+        "summon": "earth_rise",
+        "attack": "slam",
+        "aura": "earth",
+        "palette": {
+          "body": "#9a8e7c",
+          "shade": "#4e463a",
+          "accent": "#e0b04a",
+          "glow": "#ffe8a0",
+          "eye": "#ffcf3a"
+        }
+      }
+    },
+    {
+      "id": "LD-024",
+      "name": "Quarry Knight",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "EARTH",
+      "race": "Warrior",
+      "level": 4,
+      "atk": 1500,
+      "def": 1800,
+      "rarity": "common",
+      "text": "Its shield was cut from the same stone as the first castle wall.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "earth",
+        "palette": {
+          "body": "#a89a7a",
+          "shade": "#5a4e38",
+          "accent": "#d8b45a",
+          "glow": "#f4e4b0",
+          "eye": "#9fe06a",
+          "cloth": "#4a6a2a"
+        }
+      }
+    },
+    {
+      "id": "LD-025",
+      "name": "Moss Serpent",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "EARTH",
+      "race": "Reptile",
+      "level": 4,
+      "atk": 1400,
+      "def": 1600,
+      "rarity": "common",
+      "text": "It sleeps for decades at a time, so long that forests grow on its back.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "serpent",
+        "scale": 1.0,
+        "summon": "water_spout",
+        "attack": "water_jet",
+        "aura": "earth",
+        "palette": {
+          "body": "#5a8a3a",
+          "shade": "#2a4a1a",
+          "accent": "#c8a85a",
+          "glow": "#e8ffb0",
+          "eye": "#ffe14a",
+          "fin": "#8ac04a"
+        }
+      }
+    },
+    {
+      "id": "LD-026",
+      "name": "Pebble Imp",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "EARTH",
+      "race": "Rock",
+      "level": 2,
+      "atk": 700,
+      "def": 1200,
+      "rarity": "common",
+      "text": "It throws pebbles at anyone who tries to skip stones on its pond.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "imp",
+        "scale": 1.0,
+        "summon": "shadow_pool",
+        "attack": "shadow_bolt",
+        "aura": "earth",
+        "palette": {
+          "body": "#8a8070",
+          "shade": "#4a4238",
+          "accent": "#7ab04a",
+          "glow": "#d8f0a0",
+          "eye": "#ffcf3a",
+          "wing": "#5a5244"
+        }
+      }
+    },
+    {
+      "id": "LD-027",
+      "name": "Boulder Drake",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "EARTH",
+      "race": "Dragon",
+      "level": 6,
+      "atk": 2200,
+      "def": 2100,
+      "rarity": "rare",
+      "text": "It sheds its stony scales once a year, and villagers build houses from them.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 1.1,
+        "summon": "flame_burst",
+        "attack": "fire_breath",
+        "aura": "earth",
+        "palette": {
+          "body": "#8a7a5e",
+          "shade": "#463a28",
+          "accent": "#c8e06a",
+          "glow": "#f0ffb0",
+          "eye": "#ffb43a",
+          "wing": "#6a5a40"
+        }
+      }
+    },
+    {
+      "id": "LD-028",
+      "name": "The Umbral Empress",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Spellcaster",
+      "level": 8,
+      "atk": 2800,
+      "def": 2500,
+      "rarity": "ultra",
+      "text": "She rules a kingdom no map shows, where the sun has never been invited.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "sorcerer",
+        "scale": 1.3,
+        "summon": "arcane_circle",
+        "attack": "void_orb",
+        "aura": "dark",
+        "palette": {
+          "body": "#2a1430",
+          "shade": "#12060f",
+          "accent": "#e0b04a",
+          "glow": "#ff8aa8",
+          "eye": "#ff3a5a",
+          "cloth": "#8a1a2a",
+          "skin": "#d8c0d0"
+        }
+      }
+    },
+    {
+      "id": "LD-029",
+      "name": "Nightmare Wyrm",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Dragon",
+      "level": 7,
+      "atk": 2600,
+      "def": 2000,
+      "rarity": "rare",
+      "text": "It feeds on bad dreams, and has never once gone hungry.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 1.2,
+        "summon": "flame_burst",
+        "attack": "dark_flame",
+        "aura": "dark",
+        "palette": {
+          "body": "#3a2a5a",
+          "shade": "#160e26",
+          "accent": "#5af0c8",
+          "glow": "#b0fff0",
+          "eye": "#5af0c8",
+          "wing": "#4a2a6a"
+        }
+      }
+    },
+    {
+      "id": "LD-030",
+      "name": "Dread Revenant",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Zombie",
+      "level": 5,
+      "atk": 2000,
+      "def": 1400,
+      "rarity": "common",
+      "text": "A general who refused to stay buried. His army is still looking for him.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "dark",
+        "palette": {
+          "body": "#4a4a5a",
+          "shade": "#1e1e28",
+          "accent": "#b45cff",
+          "glow": "#e0b8ff",
+          "eye": "#c87aff",
+          "cloth": "#2a0a2a"
+        }
+      }
+    },
+    {
+      "id": "LD-031",
+      "name": "Shade Bat",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Fiend",
+      "level": 3,
+      "atk": 1000,
+      "def": 1000,
+      "rarity": "common",
+      "text": "It hangs from the ceiling of the Empress's throne room, listening.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "imp",
+        "scale": 1.0,
+        "summon": "shadow_pool",
+        "attack": "shadow_bolt",
+        "aura": "dark",
+        "palette": {
+          "body": "#3a2a48",
+          "shade": "#160e1e",
+          "accent": "#ff5a8a",
+          "glow": "#ffb0c8",
+          "eye": "#ff3a5a",
+          "wing": "#2a1a38"
+        }
+      }
+    },
+    {
+      "id": "LD-032",
+      "name": "Wraith Raven",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Winged Beast",
+      "level": 4,
+      "atk": 1600,
+      "def": 900,
+      "rarity": "common",
+      "text": "Its shadow arrives a moment before it does. So does the cold.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "bird",
+        "scale": 1.0,
+        "summon": "wind_swirl",
+        "attack": "dive",
+        "aura": "dark",
+        "palette": {
+          "body": "#2a2a3a",
+          "shade": "#0e0e18",
+          "accent": "#8a5cff",
+          "glow": "#c8b0ff",
+          "eye": "#ff3a5a",
+          "wing": "#1a1a2a"
+        }
+      }
+    },
+    {
+      "id": "LD-033",
+      "name": "Crystal Seraph",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "LIGHT",
+      "race": "Fairy",
+      "level": 7,
+      "atk": 2500,
+      "def": 2200,
+      "rarity": "ultra",
+      "text": "The Puppeteer's masterpiece. Its strings are made of light.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "fairy",
+        "scale": 1.3,
+        "summon": "light_pillar",
+        "attack": "shards",
+        "aura": "light",
+        "palette": {
+          "body": "#f0f8ff",
+          "shade": "#9ab8d8",
+          "accent": "#7ae8ff",
+          "glow": "#ffffff",
+          "eye": "#ff5ad8",
+          "wing": "#c8f4ff"
+        }
+      }
+    },
+    {
+      "id": "LD-034",
+      "name": "Mirror Knight",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "LIGHT",
+      "race": "Warrior",
+      "level": 4,
+      "atk": 1600,
+      "def": 1500,
+      "rarity": "common",
+      "text": "Strike it and you will only see yourself in the pieces.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "light",
+        "palette": {
+          "body": "#d8e8f8",
+          "shade": "#7a8aa8",
+          "accent": "#ff9bf0",
+          "glow": "#ffffff",
+          "eye": "#7ae8ff",
+          "cloth": "#5a3aa8"
+        }
+      }
+    },
+    {
+      "id": "LD-035",
+      "name": "Shard Sprite",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "LIGHT",
+      "race": "Fairy",
+      "level": 2,
+      "atk": 700,
+      "def": 900,
+      "rarity": "common",
+      "text": "A splinter of a broken chandelier, still dancing to old music.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "fairy",
+        "scale": 0.8,
+        "summon": "light_pillar",
+        "attack": "shards",
+        "aura": "light",
+        "palette": {
+          "body": "#ffe8f8",
+          "shade": "#c89ab8",
+          "accent": "#ffd86a",
+          "glow": "#ffffff",
+          "eye": "#5a3aa8",
+          "wing": "#ffd0f0"
+        }
+      }
+    },
+    {
+      "id": "LD-036",
+      "name": "Prism Golem",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "LIGHT",
+      "race": "Rock",
+      "level": 5,
+      "atk": 1900,
+      "def": 2200,
+      "rarity": "rare",
+      "text": "Light that enters it never leaves the same colour.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "golem",
+        "scale": 1.0,
+        "summon": "earth_rise",
+        "attack": "slam",
+        "aura": "light",
+        "palette": {
+          "body": "#b8d8f0",
+          "shade": "#5a7aa0",
+          "accent": "#ff9bf0",
+          "glow": "#ffffff",
+          "eye": "#7ae8ff"
+        }
+      }
+    },
+    {
+      "id": "LD-037",
+      "name": "Gilded Wyrm",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "LIGHT",
+      "race": "Dragon",
+      "level": 7,
+      "atk": 2600,
+      "def": 2100,
+      "rarity": "ultra",
+      "text": "The Collector's prize. Its hoard is said to include several smaller dragons.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 1.25,
+        "summon": "grand_portal",
+        "attack": "radiant_beam",
+        "aura": "light",
+        "palette": {
+          "body": "#e8c050",
+          "shade": "#8a6018",
+          "accent": "#3a2a1a",
+          "glow": "#fff0b0",
+          "eye": "#3ad6c8",
+          "wing": "#d8a838"
+        }
+      }
+    },
+    {
+      "id": "LD-038",
+      "name": "Vault Golem",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Machine",
+      "level": 6,
+      "atk": 2100,
+      "def": 2500,
+      "rarity": "common",
+      "text": "It guards the vault so well that it has forgotten what is inside.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "golem",
+        "scale": 1.0,
+        "summon": "earth_rise",
+        "attack": "slam",
+        "aura": "dark",
+        "palette": {
+          "body": "#5a5048",
+          "shade": "#26201c",
+          "accent": "#e0b04a",
+          "glow": "#ffe8a0",
+          "eye": "#ff5a3a"
+        }
+      }
+    },
+    {
+      "id": "LD-039",
+      "name": "Relic Hunter",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Warrior",
+      "level": 4,
+      "atk": 1700,
+      "def": 1200,
+      "rarity": "common",
+      "text": "It has never failed to bring back what it was sent for. Never asks why.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "dark",
+        "palette": {
+          "body": "#6a5a48",
+          "shade": "#2e261e",
+          "accent": "#e0b04a",
+          "glow": "#fff0b0",
+          "eye": "#ffcf3a",
+          "cloth": "#1e3a4a"
+        }
+      }
+    },
+    {
+      "id": "LD-040",
+      "name": "Curio Imp",
+      "type": "monster",
+      "subtype": "normal",
+      "attribute": "DARK",
+      "race": "Fiend",
+      "level": 3,
+      "atk": 1000,
+      "def": 1100,
+      "rarity": "common",
+      "text": "It catalogues everything it steals, with very neat handwriting.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "imp",
+        "scale": 1.0,
+        "summon": "shadow_pool",
+        "attack": "shadow_bolt",
+        "aura": "dark",
+        "palette": {
+          "body": "#4a6a5a",
+          "shade": "#1e2e26",
+          "accent": "#e0b04a",
+          "glow": "#fff0b0",
+          "eye": "#ffcf3a",
+          "wing": "#2a3e34"
+        }
+      }
+    },
+    {
+      "id": "LD-111",
+      "name": "Verdant Bastion",
+      "type": "spell",
+      "subtype": "field",
+      "rarity": "rare",
+      "text": "All EARTH monsters gain 300 ATK and 500 DEF.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "field",
+            "env": "meadow",
+            "modifiers": [
+              {
+                "attribute": "EARTH",
+                "atk": 300,
+                "def": 500
+              }
+            ]
+          }
+        ]
+      },
+      "visual": {
+        "fx": "field",
+        "element": "nature",
+        "palette": {
+          "a": "#2f5a2a",
+          "b": "#9ff07a"
+        }
+      }
+    }
+  ]
+}
