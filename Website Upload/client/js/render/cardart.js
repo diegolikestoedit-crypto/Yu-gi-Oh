@@ -13,6 +13,7 @@ const FRAMES = {
   monster: ["#d6a04c", "#7a4a18"],
   effect: ["#d8743a", "#6e2a0e"],
   fusion: ["#a46be0", "#3e1d6b"],
+  ascended: ["#f2dc8c", "#7a5414"],
   spell: ["#2bb59d", "#0d4f47"],
   trap: ["#cf3a72", "#5a0f2e"],
 };
@@ -201,6 +202,24 @@ function drawEmblem(ctx, c, x, y, w, h) {
       ctx.fillStyle = "#fff3a0"; ctx.beginPath(); ctx.ellipse(0, 0, R * 0.2, R * 0.34, 0, 0, Math.PI * 2); ctx.fill();
       for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.fillRect(Math.cos(a) * R * 0.95 - 2, Math.sin(a) * R * 0.95 - 2, 4, 4); }
       break;
+    case "champion": // a banner on a spear, haloed
+      ctx.beginPath(); ctx.arc(0, -R * 0.2, R * 0.9, 0, Math.PI * 2); ctx.globalAlpha = 0.35; ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff3c0"; ctx.fillRect(-4, -R * 1.1, 8, R * 2.1);
+      ctx.fillStyle = pa.b; ctx.beginPath(); ctx.moveTo(4, -R); ctx.lineTo(R * 0.8, -R * 0.75); ctx.lineTo(4, -R * 0.45); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-12, -R * 1.05); ctx.lineTo(0, -R * 1.35); ctx.lineTo(12, -R * 1.05); ctx.fill();
+      break;
+    case "crown":
+      ctx.fillStyle = "#fff0b0";
+      ctx.beginPath(); ctx.moveTo(-R, R * 0.35); ctx.lineTo(-R * 0.9, -R * 0.45); ctx.lineTo(-R * 0.45, 0); ctx.lineTo(0, -R * 0.75); ctx.lineTo(R * 0.45, 0); ctx.lineTo(R * 0.9, -R * 0.45); ctx.lineTo(R, R * 0.35); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = pa.a; ctx.fillRect(-R, R * 0.35, R * 2, R * 0.22);
+      for (const x of [-R * 0.9, 0, R * 0.9]) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, x === 0 ? -R * 0.8 : -R * 0.5, 6, 0, Math.PI * 2); ctx.fill(); }
+      for (let i = 0; i < 7; i++) { ctx.globalAlpha = 0.5; ctx.fillRect(-2, -R * 1.5 + i * 3, 4, 2); ctx.globalAlpha = 1; }
+      break;
+    case "rally": // rising phoenix wings over a shield
+      ctx.beginPath(); ctx.moveTo(0, -R * 0.4); ctx.lineTo(R * 0.5, -R * 0.2); ctx.quadraticCurveTo(R * 0.5, R * 0.5, 0, R * 0.9); ctx.quadraticCurveTo(-R * 0.5, R * 0.5, -R * 0.5, -R * 0.2); ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = "#ffd88a";
+      for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * R * 0.3, -R * 0.3); ctx.quadraticCurveTo(sx * R * 1.2, -R * 1.1, sx * R * 1.1, R * 0.1); ctx.quadraticCurveTo(sx * R * 0.8, -R * 0.3, sx * R * 0.3, -R * 0.3); ctx.fill(); }
+      break;
     case "null_seal": // crossed-out circle of runes
       ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
       ctx.beginPath(); ctx.arc(0, 0, R * 0.72, 0, Math.PI * 2); ctx.globalAlpha = 0.5; ctx.stroke(); ctx.globalAlpha = 1;
@@ -275,14 +294,18 @@ function render(c) {
   if (c.type === "monster") drawMonsterArt(ctx, c, ax, ay, aw, ah);
   else drawEmblem(ctx, c, ax, ay, aw, ah);
   ctx.strokeStyle = "rgba(255,235,190,.7)"; ctx.lineWidth = 1.5; ctx.strokeRect(ax - 1, ay - 1, aw + 2, ah + 2);
-  if (c.subtype === "fusion") {
-    // Fusion Monsters are always Level 7+: marked on the art so it reads at a glance.
+  const badge = c.subtype === "fusion" ? ["FUSION · LV " + c.level, "rgba(40,14,70,.88)", "#d9b8ff", "#f1e2ff", 92]
+    : c.subtype === "ascended" ? ["ASCENDED · LV " + c.level, "rgba(70,44,6,.9)", "#ffe58a", "#fff6d0", 112]
+    : c.fusion_substitute ? ["HERALD · ANY MATERIAL", "rgba(10,40,60,.88)", "#9fe8ff", "#e6fbff", 132] : null;
+  if (badge) {
+    // Fusions (Level 7+), Ascended monsters and Heralds are marked on the art so they read at a glance.
+    const [label, bg, edge, ink, bw] = badge;
     ctx.save();
-    roundRect(ctx, ax + 6, ay + ah - 24, 92, 18, 9);
-    ctx.fillStyle = "rgba(40,14,70,.88)"; ctx.fill();
-    ctx.strokeStyle = "#d9b8ff"; ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = "#f1e2ff"; ctx.font = "900 10px 'Nunito Sans', system-ui, sans-serif"; ctx.textBaseline = "middle";
-    ctx.fillText(`FUSION · LV ${c.level}`, ax + 14, ay + ah - 15);
+    roundRect(ctx, ax + 6, ay + ah - 24, bw, 18, 9);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = ink; ctx.font = "900 10px 'Nunito Sans', system-ui, sans-serif"; ctx.textBaseline = "middle";
+    ctx.fillText(label, ax + 14, ay + ah - 15);
     ctx.restore();
   }
   if (c.rarity === "ultra") {

@@ -24,6 +24,7 @@ const SUBTYPE = { quickplay: "Quick-Play", equip: "Equip", continuous: "Continuo
 
 // "Fusion / Effect", "Effect" or "Normal": the bracketed kind printed on monster cards.
 export function monsterKind(c) {
+  if (c.subtype === "ascended") return "Ascended / Effect";
   if (c.subtype === "fusion") return c.effect || c.piercing ? "Fusion / Effect" : "Fusion";
   return c.subtype === "effect" ? "Effect" : "Normal";
 }

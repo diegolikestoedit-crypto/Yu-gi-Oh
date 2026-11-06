@@ -34,7 +34,14 @@ export class Director {
   async run() {
     this.busy = true;
     this.ui.setBusy(true);
-    while (this.queue.length) {
+    for (;;) {
+      if (!this.queue.length) {
+        // A follow-up move (an AI action, an opponent's chain) often arrives a moment later: hold the camera
+        // briefly instead of snapping back and zooming in again.
+        const mine = this.ui.view && this.ui.decider === this.ui.view.you;
+        if (!mine && this.stage.cam.z > 1.001) await this.wait(0.35);
+        if (!this.queue.length) break;
+      }
       const msg = this.queue.shift();
       for (const ev of msg.events || []) {
         try { this.ui.logEvent(ev); } catch (err) { console.error(err); }
@@ -53,7 +60,7 @@ export class Director {
       try { this.ui.update(msg.view, msg.actions, msg.decider, msg.hint); } catch (err) { console.error(err); }
     }
     this.stage.boost = 1;
-    this.stage.dim.a = 0;
+    if (this.stage.dim.a > 0.001) this.stage.setDim(0, 0.3);
     for (const a of this.stage.actors.values()) a.engaged = false;
     this.busy = false;
     this.ui.setBusy(false);
@@ -102,7 +109,7 @@ export class Director {
   async CARD_DRAWN(ev) {
     this.apply(ev.view);
     audio.play("card_draw");
-    await this.wait(ev.reason === "opening" ? 0.35 : 0.3);
+    await this.wait(ev.reason === "opening" ? 0.3 : 0.18);
   }
 
   async TURN_STARTED(ev) {
@@ -110,7 +117,7 @@ export class Director {
     const mine = this.side(ev.player) === 0;
     this.ui.banner(mine ? "Your Turn" : `${ev.view.players[ev.player].name}'s Turn`, `Turn ${ev.turn}`, mine ? "#5cc8ff" : "#ff6a8a");
     audio.play("turn");
-    await this.wait(1.0);
+    await this.wait(0.75);
   }
 
   async PHASE_CHANGED(ev) {
@@ -118,7 +125,7 @@ export class Director {
     if (ev.phase === "battle") {
       this.ui.banner("Battle Phase", "", "#ff9a5a", true);
       audio.play("phase");
-      await this.wait(0.6);
+      await this.wait(0.45);
     } else if (ev.phase === "draw" || ev.phase === "standby") {
       await this.wait(0.12);
     } else {
@@ -198,7 +205,7 @@ export class Director {
     const side = this.side(ev.player);
     const s = this.stage.slotPos(side, ev.slot);
     const big = c.level >= 7 || c.rarity === "ultra";
-    const style = ev.method === "fusion" ? "fusion_vortex" : v.summon;
+    const style = ev.method === "fusion" ? "fusion_vortex" : ev.method === "ascension" ? "grand_portal" : v.summon;
     const [c1, c2] = SUMMON_COLORS[style] || ["#ffffff", "#ffffff"];
     const top = { x: s.x, y: s.y - 240 * (v.scale || 1) * this.stage.figScale(s.s) * 0.55 };
 
@@ -319,11 +326,45 @@ export class Director {
     await this.wait(0.2);
   }
 
+  // A Fusion is offered: it rises in a column of gold light, cracks open and the Ascended form steps out.
+  async ASCENSION_STARTED(ev) {
+    const side = this.side(ev.player);
+    const z = this.stage.slotPos(side, ev.material.slot);
+    const a = this.stage.actor(ev.material.iid);
+    this.ui.banner("Ascension Summon", cardData(ev.result_cid).name, "#ffe58a");
+    await this.stage.focus(z.x, z.y - 140, 1.12, 0.5);
+    await this.stage.setDim(0.45, 0.4, "#100a00");
+    audio.play("charge", { dur: 1.4 });
+    this.stage.add(new Pillar({ x: z.x, y: z.y, w: 120, h: 760, color: "#ffe58a", life: 2.4 }));
+    this.stage.add(new MagicCircle({ x: z.x, y: z.y, r: 150, color: "#ffe58a", color2: "#ffffff", life: 2.4, points: 10, squash: 0.4 }));
+    if (a) {
+      a.keep = true; a.engaged = true;
+      this.stage.tween(a, { lift: 90 }, 1.2, "inOut");
+      a.flash = 0.4;
+    }
+    for (let i = 0; i < 4; i++) {
+      this.burst(z.x, z.y - 60 - i * 40, 20, { color: ["#ffe58a", "#ffffff"], kind: "spark", speed: [60, 240], life: [0.4, 0.9], lift: -120 });
+      await this.wait(0.28);
+    }
+    if (a) {
+      const snap = a.snapshot();
+      a.keep = false; a.hidden = true;
+      this.stage.add(new Shatter({ ...snap, life: 1.2, cols: 5, rows: 6, power: 0.6, tint: "#ffe58a", floor: z.y + 400, particles: this.stage.particles, grav: 200 }));
+    }
+    audio.play("summon_epic");
+    this.stage.flash("#fff6d0", 0.8, 0.5);
+    this.stage.shake(14);
+    this.stage.add(new Ring({ x: z.x, y: z.y, r0: 30, r1: 320, color: "#ffe58a", life: 0.9, squash: 0.35, width: 10 }));
+    await this.wait(0.3);
+    this.apply(ev.view);
+    this.stage.setDim(0, 0.6);
+  }
+
   async FUSION_SUMMON_STARTED(ev) {
     const side = this.side(ev.player);
     const sc = this.stage.sideCenter(side);
     const c = { x: sc.x, y: sc.y - 110 };
-    this.ui.banner("Fusion Summon", cardData(ev.result_cid).name, "#ff9bf0", true);
+    this.ui.banner(ev.contact ? "Combine!" : "Fusion Summon", cardData(ev.result_cid).name, "#ff9bf0", true);
     await this.stage.focus(c.x, c.y + 80, 1.08, 0.5);
     this.stage.add(new Vortex({ x: c.x, y: c.y, r: 160, colors: ["#ff9bf0", "#7af0ff", "#ffe58a"], life: 2.6 }));
     audio.play("fusion");
@@ -406,6 +447,13 @@ export class Director {
   }
 
   async EFFECT_APPLIED(ev) {
+    if (ev.effect === "lock_traps" || ev.effect === "lock_spells") {
+      const p = this.stage.cardPos(ev.iid);
+      audio.play("negate");
+      this.stage.add(new MagicCircle({ x: p.x, y: p.y, r: 120, color: "#9fb8ff", color2: "#ffffff", life: 1.2, points: 8, squash: 0.45 }));
+      this.ui.banner(ev.effect === "lock_traps" ? "Traps sealed" : "Spells sealed", `${ev.turns_left} turns`, "#9fb8ff", true);
+      await this.wait(0.8);
+    }
     if (ev.effect === "lock_attacks") {
       const lockedSide = 1 - this.side(ev.player);
       audio.play("barrier");
@@ -893,11 +941,38 @@ export class Director {
 
   async CARD_ADDED_TO_HAND(ev) {
     const side = this.side(ev.player);
-    const deck = this.stage.pilePos(side, "deck");
-    audio.play("card_draw");
-    this.stage.add(new CardFlash({ img: cardCanvas(ev.cid), x: deck.x, y: deck.y - 80, w: 120, life: 1.1, rise: 40, glow: "#7ae8ff" }));
-    this.ui.banner(cardData(ev.cid).name, "Added from the Deck", "#7ae8ff", true);
+    const fromGy = ev.from_zone === "gy";
+    const pile = this.stage.pilePos(side, fromGy ? "gy" : "deck");
+    const col = fromGy ? "#9fffb0" : "#7ae8ff";
+    audio.play(fromGy ? "revive" : "card_draw");
+    this.stage.add(new CardFlash({ img: cardCanvas(ev.cid), x: pile.x, y: pile.y - 80, w: 120, life: 1.1, rise: 40, glow: col }));
+    if (fromGy) this.burst(pile.x, pile.y, 24, { color: [col, "#ffffff"], speed: [40, 160], life: [0.4, 0.9], lift: -60 });
+    this.ui.banner(cardData(ev.cid).name, fromGy ? "Returned from the Graveyard" : "Added from the Deck", col, true);
     await this.wait(0.9);
+    this.apply(ev.view);
+  }
+
+  // A monster is swept off the field back to its owner's hand (or Extra Deck): it spins up, shrinks and flies off.
+  async MONSTER_BOUNCED(ev) {
+    const a = this.stage.actor(ev.iid);
+    const side = this.side(ev.player);
+    const ownerSide = this.side(ev.owner);
+    const dest = ev.to === "extra" ? this.stage.pilePos(ownerSide, "extra") : { x: W / 2, y: ownerSide === 0 ? 980 : -80 };
+    audio.play("whoosh");
+    this.ui.banner(cardData(ev.cid).name, ev.to === "extra" ? "Returned to the Extra Deck" : "Returned to the hand", "#9fe8ff", true);
+    if (a && !a.hidden) {
+      a.keep = true; a.engaged = true; a.flash = 0.6;
+      const c = a.center();
+      this.stage.add(new Ring({ x: a.home.x, y: a.home.y, r0: 20, r1: 120 * a.home.s, color: "#9fe8ff", life: 0.5, squash: 0.35, width: 5 }));
+      this.burst(c.x, c.y, 26, { color: ["#9fe8ff", "#ffffff"], kind: "spark", speed: [80, 260], life: [0.3, 0.6] });
+      this.stage.tween(a, { grow: 0.25, alpha: 0 }, 0.6, "in");
+      await this.stage.tween(a.offset, { x: dest.x - a.home.x, y: dest.y - a.home.y }, 0.6, "in");
+      a.keep = false; a.hidden = true;
+    } else {
+      const z = this.stage.zonePos(side, ev.slot);
+      this.stage.add(new Projectile({ from: { x: z.x, y: z.y }, to: dest, life: 0.5, color: "#9fe8ff", size: 8, particles: this.stage.particles }));
+      await this.wait(0.5);
+    }
     this.apply(ev.view);
   }
 

@@ -224,6 +224,28 @@ def technical():
     s.save("technical")
 
 
+def combos():
+    """Herald calls a material, the two Combine, then Crown of Ascension turns the Fusion into its Ascended form."""
+    s = Script(["LD-321", "LD-002", "LD-128", "LD-127", "LD-001"], ["LD-204", "LD-034"], profile="citadel",
+               extra0=["LD-F01", "LD-A01"])
+    s.end(0)
+    snare = s.give(1, "LD-204")
+    s.act(1, "set_spell_trap", snare)
+    s.act(1, "normal_summon", s.give(1, "LD-034"))
+    s.end(1)
+    herald = s.give(0, "LD-321")
+    lumen = s.give(0, "LD-002")
+    s.act(0, "normal_summon", herald)
+    s.act(1, "pass")
+    s.act(0, "choose", lumen)
+    s.act(0, "contact_fusion")
+    knight = s.duel._monsters(0)[0]
+    s.act(0, "activate_spell", s.give(0, "LD-128"), target=knight)
+    if s.duel.state["pending"]:
+        s.act(1, "pass")
+    s.save("combos")
+
+
 if __name__ == "__main__":
-    for fn in (tribute, fusion, spells, traps, attacks, technical):
+    for fn in (tribute, fusion, spells, traps, attacks, technical, combos):
         fn()

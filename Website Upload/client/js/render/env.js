@@ -864,6 +864,32 @@ export class Environment {
     this.flip = false;
     this.damage = null;
     this.damageKey = "";
+    this.surroundFps = 30;   // animated surroundings are redrawn into a cache at this rate, not every frame
+    this.surrounds = new Map();
+  }
+  // The scenery around the board (trees, skyline, weather...) changes slowly: draw it into a cached layer
+  // a limited number of times per second and stamp that layer every frame.
+  surroundLayer(id, R, t, pr) {
+    const key = `${id}|${R.x0.toFixed(0)}|${R.y0.toFixed(0)}|${R.x1.toFixed(0)}|${R.y1.toFixed(0)}|${pr.toFixed(2)}`;
+    let s = this.surrounds.get(id);
+    if (!s || s.key !== key) {
+      const cv = document.createElement("canvas");
+      cv.width = Math.ceil((R.x1 - R.x0) * pr); cv.height = Math.ceil((R.y1 - R.y0) * pr);
+      s = { key, cv, t: -1 };
+      this.surrounds.set(id, s);
+      this.evict(this.surrounds, id);
+    }
+    if (s.t < 0 || t - s.t >= 1 / this.surroundFps || t < s.t) {
+      const c = s.cv.getContext("2d");
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.clearRect(0, 0, s.cv.width, s.cv.height);
+      c.setTransform(pr, 0, 0, pr, -R.x0 * pr, -R.y0 * pr);
+      // The static sky goes in first so additive scenery blends exactly as it would on screen.
+      if (THEMES[id].backdrop) c.drawImage(this.backdrop(id, R, pr), R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0);
+      THEMES[id].surround(c, R, t);
+      s.t = t;
+    }
+    return s.cv;
   }
   // Battle damage: deterministic scars revealed as `wear` rises, plus scars at real impact points.
   setDamage(wear, impacts, flip) {
@@ -897,8 +923,13 @@ export class Environment {
       THEMES[id].backdrop(c, R);
       b = { key, cv };
       this.backdrops.set(id, b);
+      this.evict(this.backdrops, id);
     }
     return b.cv;
+  }
+  // Full-screen layers are big: keep only the arenas currently on screen (the current one and, mid-wipe, the old one).
+  evict(map, keep) {
+    for (const k of [...map.keys()]) if (k !== keep && k !== this.current && k !== this.prev) map.delete(k);
   }
   get name() { return THEMES[this.current].name; }
   set(id) { this.current = THEMES[id] ? id : "arena"; this.prev = null; this.p = 1; }
@@ -924,13 +955,13 @@ export class Environment {
       c.scale(pr, pr);
       drawBase(c, THEMES[id], 31 + id.length * 7);
       this.cache.set(id, cv);
+      this.evict(this.cache, id);
     }
     return this.cache.get(id);
   }
   drawTheme(ctx, id, R, t, pr) {
     const th = THEMES[id];
-    if (th.backdrop) ctx.drawImage(this.backdrop(id, R, pr), R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0);
-    th.surround(ctx, R, t);
+    ctx.drawImage(this.surroundLayer(id, R, t, pr), R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0);
     if (!this.board) return; // menus show only the surroundings
     ctx.drawImage(this.base(id, pr), 0, 0, W, H);
     const dmg = this.damageLayer(pr);

@@ -91,8 +91,9 @@ class DuelAI:
         out = []
         for a in acts:
             s, why = self.score(a)
-            if noise:
-                s += self.rng.uniform(-1, 1) * self.level["noise"]
+            # Noise varies the order of useful moves; it never promotes a pointless one.
+            if noise and s > 0:
+                s = max(0.5, s + self.rng.uniform(-1, 1) * self.level["noise"])
             out.append((s, why, a))
         out.sort(key=lambda x: -x[0])
         return out
@@ -130,6 +131,37 @@ class DuelAI:
         pend = st["pending"]
         ops = self.ops(a["card"])
         nm = self.name(a["card"])
+        if pend is None:
+            # Our own Main Phase: Traps that work any time.
+            if "draw" in ops:
+                return 50, f"Activate {nm} now: draw 2 cards."
+            if "lock_spells" in ops:
+                return 40, f"Activate {nm}: your opponent can't use Spells for 3 turns."
+            if "ascend" in ops:
+                t, r = max(self.d._ascend_options(self.p), key=lambda o: self.d.data(o[1])["atk"])
+                return 80, f"Activate {nm}: {self.name(t)} ascends into {self.name(r)}."
+            return -5, ""
+        if pend["trigger"] == "opp_trap":
+            return self.counter_value(pend["trap"], nm)
+        if "lock_spells" in ops:
+            return 30, f"Spring {nm}: shut down your opponent's Spells for 3 turns."
+        if "ascend" in ops:
+            t, r = max(self.d._ascend_options(self.p), key=lambda o: self.d.data(o[1])["atk"])
+            return 80, f"Spring {nm}: {self.name(t)} ascends into {self.name(r)} ({self.d.data(r)['atk']} ATK) right now."
+        if "draw" in ops:
+            return 35, f"Spring {nm}: draw 2 free cards."
+        if "bounce_attacker" in ops:
+            hurt, attacker = self.attack_hurts()
+            return (35 + attacker / 100, f"Spring {nm}: send the attacker back to their hand.") if hurt else (-5, "")
+        if "gain_attacker_atk" in ops:
+            _, attacker = self.attack_hurts()
+            return (15 + attacker / 100, f"Spring {nm}: gain {attacker} Life Points.") if attacker >= 1200 else (-5, "")
+        if "revive_best" in ops:
+            hurt, _ = self.attack_hurts()
+            best = max((self.atk(g) for g in self.me["gy"] if self.d.data(g)["type"] == "monster"), default=0)
+            if hurt or not self.d._monsters(self.p):
+                return 40 + best / 100, f"Use {nm}: stop this attack and bring back your {best}-ATK monster."
+            return -5, ""
         if pend["trigger"] == "opp_summon":
             v = self.atk(pend["summoned"])
             return 20 + v / 50, f"Use {nm}: their {self.name(pend['summoned'])} ({v} ATK) is a real threat."
@@ -154,7 +186,15 @@ class DuelAI:
         """How much a spell is worth stopping, for Counter Traps and responses."""
         ops = self.ops(spell)
         sname = self.name(spell)
-        lp_ok = self.me["lp"] > 2000
+        lp_ok = self.me["lp"] > 2500
+        if self.d.data(spell)["type"] == "trap":
+            if any(o in ops for o in ("destroy_opponent_attack_position", "negate_attack", "bounce_attacker", "all_opp_to_defense", "destroy_summoned")):
+                return (55 if lp_ok else 25), f"Negate their {sname} with {nm}: it would stop your play."
+            if "ascend" in ops or "lock_spells" in ops:
+                return (50 if lp_ok else 20), f"Negate their {sname} with {nm}."
+            return -5, ""
+        if "tribute_for_best" in ops or "special_two_from_deck" in ops or "ascend" in ops:
+            return (60 if lp_ok else 30), f"Negate {sname} with {nm}: it is the key Spell of their combo."
         if "destroy_all_monsters" in ops and self.field_power(self.p) > self.field_power(self.q):
             return 70, f"Negate {sname} with {nm}: it would wipe out your stronger field."
         if "fusion_summon" in ops or "special_summon_target" in ops:
@@ -187,6 +227,38 @@ class DuelAI:
             return -5, ""
         return -5, ""
 
+    def s_choose(self, a):
+        iid = a["card"]
+        fusable = self.completes_fusion(iid)
+        if fusable:
+            return 60, f"Special Summon {self.name(iid)}: together with your Herald it can Combine into {fusable}."
+        return 30 + self.atk(iid) / 100, f"Special Summon {self.name(iid)} ({self.atk(iid)} ATK) for free."
+
+    def s_skip(self, a):
+        return 0, "Keep the cards in your hand for later."
+
+    def completes_fusion(self, iid):
+        """The name of a Fusion that iid plus what is already on the field could Combine into, if any."""
+        pool = [i for i in self.d._monsters(self.p) if self.d.c(i)["face_up"]] + [iid]
+        for fx in self.me["extra"]:
+            if self.d.data(fx)["subtype"] == "fusion" and any(iid in c for c in self.d._material_combos(fx, pool)):
+                return self.name(fx)
+        return None
+
+    def can_ascend_later(self):
+        hand = any("ascend" in self.ops(i) for i in self.me["hand"])
+        setc = any("ascend" in self.ops(i) for i in self.d._set_cards(self.p))
+        return hand or setc
+
+    def s_contact_fusion(self, a):
+        fx = a["fusion"]
+        best_mat = max(self.atk(m) for m in a["materials"])
+        bonus = 22 if self.can_ascend_later() else 0
+        why = f"Combine them into {self.name(fx)} ({self.d.data(fx)['atk']} ATK, Level {self.d.data(fx)['level']})."
+        if bonus:
+            why += " Then you can Ascend it with your Crown of Ascension / Ascension Rite."
+        return 42 + (self.d.data(fx)["atk"] - best_mat) / 40 + bonus, why
+
     def s_discard(self, a):
         d = self.d.data(a["card"])
         if d["type"] == "monster":
@@ -210,12 +282,30 @@ class DuelAI:
 
     def summon_effect_bonus(self, iid):
         eff = self.d.data(iid).get("effect")
+        if eff and eff.get("trigger") == "normal_summon":
+            # A Herald is worth most when the monster it calls can finish a Fusion.
+            pool = [i for i in self.d._monsters(self.p) if self.d.c(i)["face_up"]] + [iid]
+            for h in self.me["hand"]:
+                if h != iid and self.d._matches(h, {"max_level": 4}):
+                    for fx in self.me["extra"]:
+                        if self.d.data(fx)["subtype"] == "fusion" and self.d._material_combos(fx, pool + [h]):
+                            return 30
+            return 16
+        if eff and eff.get("trigger") == "standby":
+            return 14  # pays off every turn it survives
         if not eff or eff.get("trigger") != "summon":
             return 0
         ops = [o["op"] for o in eff["ops"]]
+        if "bounce_strongest_opp" in ops or "destroy_strongest_opp" in ops:
+            return 25 if self.d._monsters(self.q) else 0
+        if "recover_gy" in ops:
+            return 12 if any(self.d.data(g)["type"] == "monster" for g in self.me["gy"]) else 0
         if "destroy_opp_st" in ops:
             return 18 if self.opp_set_count() else 0
         if "search_deck" in ops or "draw" in ops:
+            f = next((o.get("filter", {}) for o in eff["ops"] if o["op"] == "search_deck"), {})
+            if f.get("combo"):
+                return 26  # starts the summon chain
             return 14
         if "damage_opponent" in ops or "gain_lp" in ops:
             return 8
@@ -271,6 +361,25 @@ class DuelAI:
         d = self.d.data(iid)
         nm = d["name"]
         ops = self.ops(iid)
+        if "special_two_from_deck" in ops:
+            follow = any("tribute_for_best" in self.ops(i) for i in self.me["hand"])
+            return 58 + (15 if follow else 0), f"Activate {nm}: Special Summon 2 monsters from your Deck" + \
+                (" — then Grand Offering can Tribute them into your ace." if follow else ".")
+        if "tribute_for_best" in ops:
+            v = self.d.db[a["search"]]["atk"]
+            gain = v - sum(self.atk(t) for t in a["tributes"])
+            if v < 2400 or (gain < 0 and v < self.opp_best_atk()):
+                return -5, ""
+            return 60 + v / 100, f"Activate {nm}: Tribute the two weakest to summon {self.d.db[a['search']]['name']} ({v} ATK) straight from your hand or Deck."
+        if "lock_traps" in ops:
+            return (40, f"Activate {nm}: your opponent has {self.opp_set_count()} Set cards; stop their Traps for 3 turns.") \
+                if self.opp_set_count() >= 2 else (6, "")
+        if "ascend" in ops:
+            r = a["result"]
+            return 82, f"Activate {nm}: {self.name(a['target'])} ascends into {self.name(r)} ({self.d.data(r)['atk']} ATK)."
+        if "summon_best_from_deck" in ops:
+            v = self.d.db[a["search"]]["atk"]
+            return 55 + v / 100, f"Activate {nm}: call {self.d.db[a['search']]['name']} ({v} ATK) straight from your Deck."
         if "draw" in ops:
             return 62, f"Activate {nm}: free cards are always good."
         if "destroy_all_monsters" in ops:
@@ -295,8 +404,14 @@ class DuelAI:
             v = self.atk(a["target"])
             return (25 + v / 60, f"Activate {nm}: bring back {self.name(a['target'])} ({v} ATK).") if v >= 1200 else (-10, "")
         if "search_deck" in ops:
+            v = self.d.db[a["search"]].get("atk", 1600)
+            return 40 + v / 200, f"Activate {nm} and add {self.d.db[a['search']]['name']} to your hand."
+        if "recover_gy" in ops:
             v = self.d.db[a["search"]]["atk"]
-            return 40 + v / 200, f"Activate {nm} and add {self.d.db[a['search']]['name']}: it is the strongest search you have."
+            return 28 + v / 100, f"Activate {nm}: take {self.d.db[a['search']]['name']} ({v} ATK) back from the Graveyard."
+        if "bounce_strongest_opp" in ops:
+            th = max((self.threat(i) for i in self.d._monsters(self.q)), default=0)
+            return (45 + th / 80, f"Activate {nm}: their {th}-ATK monster goes back to the hand.") if th >= self.my_best_atk() else (8, "")
         if "equip" in ops:
             t = a["target"]
             bonus = next(o.get("atk", 0) for o in self.d.data(iid)["effect"]["ops"] if o["op"] == "equip")

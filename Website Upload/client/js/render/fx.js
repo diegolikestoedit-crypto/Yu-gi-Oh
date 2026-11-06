@@ -9,6 +9,24 @@ const fade = (p, a = 0.15, b = 0.7) => (p < a ? p / a : p > b ? Math.max(0, 1 - 
 function col(c) { return c && c.startsWith("#") ? c : "#ffffff"; }
 
 // ------------------------------------------------------------------ particles
+// Glow particles are stamped from a small pre-rendered sprite per colour instead of building a radial
+// gradient for every particle every frame.
+const GLOW = new Map();
+function glowSprite(color) {
+  let cv = GLOW.get(color);
+  if (!cv) {
+    cv = document.createElement("canvas");
+    cv.width = cv.height = 64;
+    const c = cv.getContext("2d");
+    const g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, color); g.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = g; c.fillRect(0, 0, 64, 64);
+    if (GLOW.size > 200) GLOW.clear();
+    GLOW.set(color, cv);
+  }
+  return cv;
+}
+
 export class Particles {
   constructor(max = 1600) {
     this.max = max;
@@ -57,10 +75,8 @@ export class Particles {
         const k = 1 - p.age / p.life;
         ctx.globalAlpha = Math.min(1, k * 1.4);
         if (p.kind === "glow") {
-          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2.2);
-          g.addColorStop(0, p.color); g.addColorStop(1, "rgba(0,0,0,0)");
-          ctx.fillStyle = g;
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 2.2, 0, TAU); ctx.fill();
+          const r = p.size * 2.2;
+          ctx.drawImage(glowSprite(p.color), p.x - r, p.y - r, r * 2, r * 2);
         } else if (p.kind === "spark") {
           ctx.strokeStyle = p.color; ctx.lineWidth = p.size * 0.6;
           ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.04, p.y - p.vy * 0.04); ctx.stroke();

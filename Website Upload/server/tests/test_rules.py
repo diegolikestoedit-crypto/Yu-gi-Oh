@@ -69,6 +69,12 @@ def end_turn(duel, p):
     return ev
 
 
+def skip_window(duel):
+    """Pass any response windows (they only open when a response is actually possible)."""
+    while duel.state["pending"] and duel.state["pending"]["kind"] == "response":
+        duel.act(duel.decider(), "pass")
+
+
 def kinds(duel, p):
     return {a["kind"] for a in duel.legal_actions(p)}
 
@@ -231,7 +237,7 @@ class Traps(unittest.TestCase):
         duel, t = self.defender_with_trap("LD-201")
         knight = give(duel, 0, "LD-002")
         act_kind(duel, 0, "normal_summon", knight)
-        act_kind(duel, 1, "pass")
+        skip_window(duel)
         act_kind(duel, 0, "enter_battle")
         ev = act_kind(duel, 0, "attack", knight, target=None)
         self.assertEqual(types(ev), ["ATTACK_DECLARED"])
@@ -247,7 +253,7 @@ class Traps(unittest.TestCase):
         duel, t = self.defender_with_trap("LD-201")
         knight = give(duel, 0, "LD-002")
         act_kind(duel, 0, "normal_summon", knight)
-        act_kind(duel, 1, "pass")
+        skip_window(duel)
         act_kind(duel, 0, "enter_battle")
         act_kind(duel, 0, "attack", knight, target=None)
         ev = act_kind(duel, 1, "pass")
@@ -258,7 +264,7 @@ class Traps(unittest.TestCase):
         duel, t = self.defender_with_trap("LD-202")
         knight = give(duel, 0, "LD-002")
         act_kind(duel, 0, "normal_summon", knight)
-        act_kind(duel, 1, "pass")
+        skip_window(duel)
         act_kind(duel, 0, "enter_battle")
         act_kind(duel, 0, "attack", knight, target=None)
         ev = act_kind(duel, 1, "activate_trap", t)
@@ -271,7 +277,7 @@ class Traps(unittest.TestCase):
         duel, t = self.defender_with_trap("LD-203")
         knight = give(duel, 0, "LD-002")
         act_kind(duel, 0, "normal_summon", knight)
-        act_kind(duel, 1, "pass")
+        skip_window(duel)
         act_kind(duel, 0, "enter_battle")
         act_kind(duel, 0, "attack", knight, target=None)
         act_kind(duel, 1, "activate_trap", t)

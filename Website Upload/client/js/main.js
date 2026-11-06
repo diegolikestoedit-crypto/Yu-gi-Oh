@@ -14,7 +14,7 @@ import { Environment } from "./render/env.js";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-const state = { screen: "menu", decks: [], profiles: {}, room: null, seat: null, inDuel: false, showingEnd: false, solo: false, pick: "me" };
+const state = { screen: "menu", decks: [], profiles: {}, room: null, seat: null, inDuel: false, showingEnd: false, solo: false, pick: "me", role: "" };
 const DIFFICULTIES = [["easy", "Easy"], ["normal", "Normal"], ["hard", "Hard"]];
 let stage, net, ui, director, showcase;
 let profileChoice = settings.get("lastProfile") || "citadel";
@@ -145,7 +145,11 @@ function renderDecks(me, room) {
   const g = $("deck-gallery");
   g.innerHTML = "";
   const order = (d) => ROLES.findIndex(([r]) => r === (d.duelist && d.duelist.role));
-  const decks = [...state.decks].sort((a, b) => order(a) - order(b));
+  const decks = [...state.decks].sort((a, b) => order(a) - order(b)).filter((d) => !state.role || (d.duelist && d.duelist.role === state.role));
+  $("seg-role").querySelectorAll("button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.v === state.role);
+    b.onclick = () => { audio.play("ui_click"); state.role = b.dataset.v; renderLobby(); };
+  });
   for (const d of decks) {
     const du = d.duelist || { name: d.name, title: "", role: "", color: "#f4cf6a" };
     const n = deckCounts(d);
@@ -255,7 +259,7 @@ function wireSettings() {
   };
   settings.onChange((k, v) => {
     if (k === "animSpeed") stage.speed = Number(v);
-    if (k === "quality") { stage.quality = v; stage.particles.setQuality(v); }
+    if (k === "quality") { stage.quality = v; stage.particles.setQuality(v); stage.perfFloor = v === "low" ? 2 : 0; stage.setPerf(stage.perfFloor); }
     if (k === "camera") stage.cameraMotion = !!v;
     if (k === "figures") stage.figures = v;
     refresh();
@@ -263,6 +267,8 @@ function wireSettings() {
   stage.speed = Number(settings.get("animSpeed"));
   stage.quality = settings.get("quality");
   stage.particles.setQuality(stage.quality);
+  stage.perfFloor = stage.quality === "low" ? 2 : 0;
+  stage.setPerf(stage.perfFloor);
   stage.cameraMotion = !!settings.get("camera");
   stage.figures = settings.get("figures");
   return open;
@@ -374,6 +380,18 @@ async function runReplay(name) {
   R.done = true;
 }
 
+// Card faces are painted (and PNG-encoded) on first use, which can stall a draw or a summon mid-animation.
+// Paint them all ahead of time in idle moments instead, a couple per slice.
+function prewarmCards() {
+  const ids = allCards().map((c) => c.id);
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(() => fn({ timeRemaining: () => 8 }), 30));
+  const step = (deadline) => {
+    while (ids.length && deadline.timeRemaining() > 4) cardURL(ids.shift());
+    if (ids.length) idle(step);
+  };
+  idle(step);
+}
+
 // ------------------------------------------------------------------ boot
 async function boot() {
   stage = new Stage($("stage"));
@@ -381,6 +399,7 @@ async function boot() {
   ui = new DuelUI(stage, net);
   director = new Director(stage, ui);
   await loadCards();
+  prewarmCards();
   const openSettings = wireSettings();
   wireNet();
 

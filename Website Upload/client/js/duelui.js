@@ -13,8 +13,9 @@ const REASONS = { lp: "Life Points reached zero.", deck_out: "A duelist could no
 const BUBBLE = {
   normal_summon: ["⬆", "Summon"], set_monster: ["▼", "Set"], tribute_summon: ["✦", "Tribute"], activate_spell: ["✧", "Activate"],
   set_spell_trap: ["▼", "Set"], flip_summon: ["↻", "Flip"], change_position: ["⟲", "Position"], attack: ["⚔", "Attack"], discard: ["✕", "Discard"],
+  contact_fusion: ["✺", "Combine"], activate_trap: ["✧", "Activate"],
 };
-const BUBBLE_ORDER = ["normal_summon", "tribute_summon", "activate_spell", "attack", "flip_summon", "change_position", "set_monster", "set_spell_trap", "discard"];
+const BUBBLE_ORDER = ["contact_fusion", "normal_summon", "tribute_summon", "activate_spell", "activate_trap", "attack", "flip_summon", "change_position", "set_monster", "set_spell_trap", "discard"];
 const SLOT_ORDER = [2, 1, 3, 0, 4]; // the engine fills zones centre-first
 
 function el(tag, cls, html) {
@@ -160,7 +161,7 @@ export class DuelUI {
     if (!settings.get("autoPass") || !v || !v.pending || v.pending.kind !== "response" || this.decider !== v.you) return;
     if (this.actions.length !== 1 || this.actions[0].kind !== "pass") return;
     const id = this.actions[0].id;
-    this.autoPassTimer = setTimeout(() => { if (this.myTurnToAct() && this.actions.some((a) => a.id === id)) this.send(id); }, 700 + Math.random() * 900);
+    this.autoPassTimer = setTimeout(() => { if (this.myTurnToAct() && this.actions.some((a) => a.id === id)) this.send(id); }, 250 + Math.random() * 350);
   }
 
   cardExists(iid) {
@@ -203,7 +204,11 @@ export class DuelUI {
 
   // ------------------------------------------------------------- render
   myTurnToAct() { return this.view && this.decider === this.view.you && !this.busy && !this.sent; }
-  selActions() { return this.myTurnToAct() && this.sel ? this.actions.filter((a) => a.card === this.sel) : []; }
+  // Actions for the selected card. A Combine belongs to every one of its materials.
+  selActions() {
+    if (!this.myTurnToAct() || !this.sel) return [];
+    return this.actions.filter((a) => a.card === this.sel || (a.kind === "contact_fusion" && a.materials.includes(this.sel)));
+  }
 
   render() {
     if (!this.view) return;
@@ -318,15 +323,26 @@ export class DuelUI {
     p.classList.remove("hidden");
     if (pend.player !== v.you) {
       p.className = "prompt waiting";
-      p.textContent = pend.kind === "response" ? "Waiting for your opponent to respond…" : "Your opponent is discarding…";
+      p.textContent = pend.kind === "response" ? "Waiting for your opponent to respond…" : pend.kind === "choice" ? "Your opponent is choosing an effect…" : "Your opponent is discarding…";
       return;
     }
     p.className = "prompt";
     if (pend.kind === "discard") { p.innerHTML = `<div class="p-title">Hand limit: choose a card in your hand to discard.</div>`; return; }
+    if (pend.kind === "choice") {
+      p.innerHTML = `<div class="p-title">${esc(pend.text || "Choose")}</div><div class="p-btns"></div>`;
+      const btns = p.querySelector(".p-btns");
+      for (const a of this.actions) {
+        const b = el("button", "btn" + (a.kind === "skip" ? "" : " primary"), esc(a.label));
+        b.onclick = () => this.send(a.id);
+        btns.appendChild(b);
+      }
+      return;
+    }
     const about = pend.card && this.findCard(pend.card);
     const aboutName = about && about.cid ? cardData(about.cid).name : "";
     const title = pend.trigger === "opp_attack" ? "Your opponent declared an attack!"
       : pend.trigger === "opp_spell" ? `Your opponent activated ${esc(aboutName || "a Spell")}!`
+      : pend.trigger === "opp_trap" ? `Your opponent sprang ${esc(aboutName || "a Trap")}!`
       : `Your opponent summoned ${esc(aboutName || "a monster")}!`;
     p.innerHTML = `<div class="p-title">${title} Respond with a Set card?</div><div class="p-btns"></div>`;
     const btns = p.querySelector(".p-btns");
@@ -537,7 +553,7 @@ export class DuelUI {
     let text = null, cls = ev.player === me ? "me" : ev.player !== undefined ? "opp" : "";
     switch (ev.type) {
       case "TURN_STARTED": text = `Turn ${ev.turn} · ${ev.player === me ? "Your turn" : `${esc(v.players[ev.player].name)}'s turn`}`; cls = "turn"; break;
-      case "MONSTER_SUMMONED": text = `${who(ev.player)} ${ev.method === "tribute" ? "Tribute Summoned" : ev.method === "fusion" ? "Fusion Summoned" : ev.method === "revive" ? "revived" : "summoned"} ${nm(ev.cid)}.`; break;
+      case "MONSTER_SUMMONED": text = `${who(ev.player)} ${{ tribute: "Tribute Summoned", fusion: "Fusion Summoned", revive: "revived", ascension: "Ascension Summoned", effect: "Special Summoned" }[ev.method] || "summoned"} ${nm(ev.cid)}.`; break;
       case "MONSTER_SET": text = `${who(ev.player)} Set a monster.`; break;
       case "CARD_SET": text = `${who(ev.player)} Set a card.`; break;
       case "MONSTER_FLIPPED": text = `${nm(ev.cid)} was flipped face-up.`; break;
@@ -549,12 +565,15 @@ export class DuelUI {
       case "LIFE_POINTS_CHANGED": text = `${who(ev.player)} ${ev.delta < 0 ? "took" : "gained"} <b>${Math.abs(ev.delta)}</b> (LP ${ev.lp}).`; break;
       case "FIELD_SPELL_ACTIVATED": text = `The field became ${nm(ev.cid)}.`; break;
       case "EFFECT_EXPIRED": text = `${nm(ev.cid)} faded away.`; break;
+      case "FUSION_SUMMON_STARTED": if (!ev.contact) return; text = `${who(ev.player)} combined ${ev.materials.map((m) => nm(m.cid)).join(" + ")}!`; break;
+      case "ASCENSION_STARTED": text = `${who(ev.player)} offered ${nm(ev.material.cid)} to Ascend!`; cls = "turn"; break;
       case "MONSTER_EFFECT": text = `${nm(ev.cid)}'s effect: ${esc(ev.text || "activated")}.`; break;
       case "EQUIP_ATTACHED": text = `${nm(ev.cid)} was equipped to ${nm(cidOf(ev.target))} (+${ev.atk} ATK${ev.defense ? `, +${ev.defense} DEF` : ""}).`; break;
       case "MONSTER_BOOSTED": text = `${nm(ev.cid)} gained <b>${ev.amount}</b> ATK this turn.`; break;
       case "CARD_DESTROYED": text = `${ev.was_face_up ? nm(ev.cid) : `A Set ${nm(ev.cid)}`} was destroyed.`; cls = ev.player === me ? "me" : "opp"; break;
       case "SPELL_NEGATED": text = `${nm(ev.cid)} was negated!`; cls = ev.player === me ? "me" : "opp"; break;
-      case "CARD_ADDED_TO_HAND": text = `${who(ev.player)} added ${nm(ev.cid)} from the Deck to the hand.`; break;
+      case "CARD_ADDED_TO_HAND": text = `${who(ev.player)} added ${nm(ev.cid)} ${ev.from_zone === "gy" ? "from the Graveyard" : "from the Deck"} to the hand.`; break;
+      case "MONSTER_BOUNCED": text = `${nm(ev.cid)} was returned to ${ev.to === "extra" ? "the Extra Deck" : "the hand"}.`; cls = ev.player === me ? "me" : "opp"; break;
       case "FIELD_SPELL_REMOVED": if (ev.reason !== "destroyed") return; text = `${nm(ev.cid)} was destroyed.`; break;
       case "CARD_DRAWN": if (ev.reason !== "refill") return; text = `${who(ev.player)} refilled the hand to 4 cards.`; break;
       case "DUEL_WON": text = `${ev.player === me ? "You win" : `${esc(v.players[ev.player].name)} wins`}!`; cls = "turn"; break;

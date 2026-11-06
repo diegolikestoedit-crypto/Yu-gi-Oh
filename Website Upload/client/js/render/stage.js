@@ -20,6 +20,18 @@ const EASE = {
   back: (p) => { const c = 1.7; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); },
 };
 const HL = { target: "#ff5a6a", selected: "#ffe58a", actionable: "#6dffa8", zone: "#6dd8ff", hint: "#7ae8ff" };
+// Render-scale steps for the frame-rate governor: slower machines trade a little sharpness for smooth motion.
+const PERF_SCALE = [1, 0.8, 0.66, 0.55];
+
+// A soft glowing outline from three stacked strokes: looks like a blur glow at a fraction of the cost.
+function glowStroke(ctx, path, color, width = 3, pulse = 1) {
+  const base = ctx.globalAlpha;
+  ctx.strokeStyle = color;
+  for (const [a, k] of [[0.14 * pulse, 5], [0.3 * pulse, 2.6], [1, 1]]) {
+    ctx.globalAlpha = base * a; ctx.lineWidth = width * k; path(); ctx.stroke();
+  }
+  ctx.globalAlpha = base;
+}
 
 export class Stage {
   constructor(canvas) {
@@ -48,6 +60,20 @@ export class Stage {
     this.active = false;
     this.baseEnv = "meadow";  // the arena chosen in the room; Field Spells override it
     this.impacts = [];        // scars from real impacts, in absolute board space
+    this.perfLevel = 0;       // 0 = full quality; raised automatically when frames run slow
+    this.perfFloor = 0;       // the user's Low quality setting starts higher
+    this.perfWindow = { t: 0, frames: 0, slow: 0, fast: 0 };
+    this.noBlur = false;
+    // shadowBlur is the most expensive canvas feature: one switch turns it off everywhere when frames run slow.
+    const proto = CanvasRenderingContext2D.prototype;
+    const desc = Object.getOwnPropertyDescriptor(proto, "shadowBlur");
+    const self = this;
+    if (desc && desc.set) {
+      Object.defineProperty(this.ctx, "shadowBlur", {
+        get() { return desc.get.call(this); },
+        set(v) { desc.set.call(this, self.noBlur ? 0 : v); },
+      });
+    }
     this.resize();
     addEventListener("resize", () => this.resize());
     canvas.addEventListener("pointerdown", (e) => this.pointer(e, "click"));
@@ -55,9 +81,11 @@ export class Stage {
     this.last = performance.now();
     const loop = () => {
       const now = performance.now();
+      const raw = Math.max(0, now - this.last) / 1000;
       // Cap at 0.1s so low frame rates keep real-time pacing without huge jumps.
-      this.frame(Math.min(0.1, Math.max(0, now - this.last) / 1000));
+      this.frame(Math.min(0.1, raw));
       this.last = now;
+      this.govern(raw);
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
@@ -69,9 +97,30 @@ export class Stage {
     }, 100);
   }
 
+  // Watch real frame times; step render quality down when the machine can't keep up, back up when it can.
+  govern(raw) {
+    if (document.hidden || raw > 0.5 || !this.active) return;
+    const w = this.perfWindow;
+    w.t += raw; w.frames++;
+    if (w.t < 1) return;
+    const avg = (w.t / w.frames) * 1000;
+    w.t = 0; w.frames = 0;
+    if (avg > 26) { w.slow++; w.fast = 0; } else if (avg < 14) { w.fast++; w.slow = 0; } else { w.slow = 0; w.fast = 0; }
+    if (w.slow >= 2 && this.perfLevel < PERF_SCALE.length - 1) { this.setPerf(this.perfLevel + 1); w.slow = 0; }
+    else if (w.fast >= 6 && this.perfLevel > this.perfFloor) { this.setPerf(this.perfLevel - 1); w.fast = 0; }
+  }
+
+  setPerf(level) {
+    this.perfLevel = Math.max(this.perfFloor, Math.min(PERF_SCALE.length - 1, level));
+    this.noBlur = this.perfLevel >= 1;
+    this.particles.max = [1600, 1000, 600, 380][this.perfLevel];
+    this.env.surroundFps = this.perfLevel >= 2 ? 15 : 30;
+    this.resize();
+  }
+
   // ---------------------------------------------------------------- layout
   resize() {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.max(0.75, Math.min(2, window.devicePixelRatio || 1) * PERF_SCALE[this.perfLevel || 0]);
     const w = Math.max(1, innerWidth), h = Math.max(1, innerHeight);
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
@@ -303,8 +352,7 @@ export class Stage {
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y - 30 * a.s); ctx.stroke();
     }
     const L = proj(-590, z0), R = proj(590, z0);
-    ctx.strokeStyle = `rgba(${col},0.8)`; ctx.lineWidth = 3; ctx.shadowColor = `rgb(${col})`; ctx.shadowBlur = 16;
-    ctx.beginPath(); ctx.moveTo(L.x, L.y); ctx.lineTo(R.x, R.y); ctx.stroke();
+    glowStroke(ctx, () => { ctx.beginPath(); ctx.moveTo(L.x, L.y); ctx.lineTo(R.x, R.y); }, `rgba(${col},0.85)`, 3);
     ctx.restore();
   }
 
@@ -318,14 +366,13 @@ export class Stage {
     const w = TILE_W * z.s, h = TILE_H * z.s * FORE;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.shadowColor = color; ctx.shadowBlur = 18 + Math.sin(this.time * 5) * 6;
     ctx.globalAlpha = 0.75 + Math.sin(this.time * 5) * 0.2;
-    ctx.beginPath(); ctx.roundRect(z.x - w / 2 + 3, z.y - h / 2 + 3, w - 6, h - 6, 10 * z.s); ctx.stroke();
+    glowStroke(ctx, () => { ctx.beginPath(); ctx.roundRect(z.x - w / 2 + 3, z.y - h / 2 + 3, w - 6, h - 6, 10 * z.s); }, color, 3);
     ctx.restore();
   }
 
   // A card lying on the board, foreshortened; rotated for Defense Position.
-  boardCard(ctx, z, cid, faceUp, rotated, highlight, lift = 0) {
+  boardCard(ctx, z, cid, faceUp, rotated, highlight, lift = 0, setTag = false) {
     const img = faceUp && cid ? cardCanvas(cid) : cardBack();
     const w = CARD_W * z.s, h = CARD_H * z.s;
     ctx.save();
@@ -336,12 +383,21 @@ export class Stage {
     ctx.restore();
     ctx.scale(1, FORE);
     if (rotated) ctx.rotate(Math.PI / 2);
-    if (highlight) { ctx.shadowColor = HL[highlight] || highlight; ctx.shadowBlur = 22 + Math.sin(this.time * 6) * 6; }
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    if (setTag) {
+      // Face-down but yours: the face stays readable under a dark veil with a SET ribbon.
+      ctx.fillStyle = "rgba(8,14,40,.42)"; ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.strokeStyle = "rgba(160,190,255,.8)"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(-w / 2 + 2, -h / 2 + 2, w - 4, h - 4); ctx.setLineDash([]);
+      const bh = 22 * (w / 80);
+      ctx.fillStyle = "rgba(20,30,70,.9)"; ctx.fillRect(-w / 2, -bh / 2, w, bh);
+      ctx.fillStyle = "#cfe0ff"; ctx.font = `900 ${Math.round(bh * 0.62)}px 'Nunito Sans', system-ui`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("SET", 0, 1);
+    }
     if (highlight) {
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = HL[highlight] || highlight; ctx.lineWidth = 3;
-      ctx.strokeRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4);
+      // Pulsing outline glow drawn as strokes (blurring the whole card image every frame was the costly part).
+      const pulse = 0.8 + Math.sin(this.time * 6) * 0.2;
+      ctx.globalAlpha = 1;
+      glowStroke(ctx, () => { ctx.beginPath(); ctx.rect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4); }, HL[highlight] || highlight, 3, pulse);
     }
     ctx.restore();
   }
@@ -406,7 +462,9 @@ export class Stage {
       pl.st.forEach((c, slot) => {
         if (!c) return;
         const z = stZone(side, slot);
-        this.boardCard(ctx, z, c.cid, c.face_up, false, this.highlights.get(c.iid));
+        // Your own Set cards show their face (darkened, tagged SET); the opponent's stay hidden.
+        const ownSet = !c.face_up && side === 0 && c.cid;
+        this.boardCard(ctx, z, c.cid, c.face_up || !!ownSet, false, this.highlights.get(c.iid), 0, !!ownSet);
         if (c.counters && c.counters.turns_left) {
           ctx.save(); ctx.fillStyle = "#ffe58a"; ctx.font = `900 ${Math.round(16 * z.s)}px 'Nunito Sans'`; ctx.textAlign = "center";
           ctx.lineWidth = 4; ctx.strokeStyle = "#000"; ctx.strokeText(String(c.counters.turns_left), z.x + 30 * z.s, z.y - 30 * z.s);
@@ -419,12 +477,8 @@ export class Stage {
         const a = this.actors.get(m.iid);
         if (a && (a.hidden || a.mat < 0.05)) return; // still materialising: the card arrives with the figure
         const faceUp = m.face_up && !!m.cid;
-        this.boardCard(ctx, z, faceUp ? m.cid : (side === 0 ? m.cid : null), faceUp, m.position === "def", this.highlights.get(m.iid));
-        if (!faceUp && side === 0 && m.cid) {
-          ctx.save(); ctx.globalAlpha = 0.55; this.boardCard(ctx, z, m.cid, true, true, null); ctx.restore();
-          ctx.save(); ctx.font = `800 ${Math.round(11 * z.s)}px 'Nunito Sans'`; ctx.textAlign = "center"; ctx.fillStyle = "#cfe0ff";
-          ctx.fillText("SET", z.x, z.y + (CARD_H * z.s * FORE) / 2 + 2); ctx.restore();
-        }
+        const ownSet = !faceUp && side === 0 && !!m.cid;
+        this.boardCard(ctx, z, m.cid, faceUp || ownSet, m.position === "def", this.highlights.get(m.iid), 0, ownSet);
         if (faceUp) this.statLabel(ctx, z, m, side);
       });
     }
@@ -447,7 +501,6 @@ export class Stage {
         ctx.translate(pt.x, pt.y - 36 * pt.s + bob);
         ctx.scale(pt.s * 0.8, pt.s * 0.8);
         ctx.globalAlpha = 0.8;
-        ctx.shadowColor = "#ffe58a"; ctx.shadowBlur = 18;
         const g = ctx.createLinearGradient(0, -60, 0, 60);
         g.addColorStop(0, "#fffbe0"); g.addColorStop(1, "#e0a020");
         ctx.fillStyle = g;

@@ -212,7 +212,8 @@ class Server:
             return
         if room.bot_task and not room.bot_task.done():
             return
-        delay = min(3.6, 0.8 + 0.4 * n_events) * BOT_PACE
+        # Long enough for the last move's animations to play, short enough that nobody waits on an idle board.
+        delay = min(2.4, 0.45 + 0.22 * n_events) * BOT_PACE
         room.bot_task = asyncio.ensure_future(self.bot_move(room, delay))
 
     async def bot_move(self, room: Room, delay: float):

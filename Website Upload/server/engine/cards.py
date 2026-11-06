@@ -55,9 +55,9 @@ def validate_deck(db: dict, deck: dict, profile: str) -> list:
         if n > limit:
             problems.append(f"At most {limit} {'copy' if limit == 1 else 'copies'} of {db[cid]['name']}.")
     for cid in main:
-        if db.get(cid, {}).get("subtype") == "fusion":
+        if db.get(cid, {}).get("subtype") in ("fusion", "ascended"):
             problems.append(f"{db[cid]['name']} belongs in the Extra Deck.")
     for cid in extra:
-        if db.get(cid, {}).get("subtype") != "fusion":
+        if db.get(cid, {}).get("subtype") not in ("fusion", "ascended"):
             problems.append(f"{db.get(cid, {}).get('name', cid)} cannot go in the Extra Deck.")
     return problems

@@ -25,11 +25,15 @@ export function guideMessage(view, actions, decider, sel, choose) {
     const traps = actions.filter((a) => a.kind === "activate_trap" || a.kind === "activate_quick");
     const what = pend.trigger === "opp_attack" ? "Your opponent declared an attack."
       : pend.trigger === "opp_spell" ? "Your opponent is activating a Spell. A Counter Trap or a Set Quick-Play can answer it before it resolves."
+      : pend.trigger === "opp_trap" ? "Your opponent sprang a Trap. A Counter Trap like Seal Breaker can cancel it."
       : "Your opponent just summoned a monster.";
     return traps.length
       ? `${what} You have a Set card that can respond: use it now, or let it go.`
       : `${what} None of your Set cards can respond to this, so choose "Don't respond".`;
   }
+  if (pend && pend.kind === "choice") return "Your monster's effect lets you Special Summon a Level 4 or lower monster from your hand. Pick one, or skip it.";
+  if (decider === me && actions.some((a) => a.kind === "contact_fusion") && !sel)
+    return "Combo ready! Two of your monsters on the field can Combine into a Fusion. Select one of them and press Combine.";
   if (pend && pend.kind === "discard") return `Hand limit: you hold ${mine.hand.length} cards. Choose one to discard.`;
 
   const phase = view.phase;
@@ -65,6 +69,8 @@ export function guideMessage(view, actions, decider, sel, choose) {
         return "This monster can't be summoned right now.";
       }
       if (c.type === "spell") {
+        if (!forCard.length && view.players[1 - me].st.some((x) => x && x.face_up && x.cid && cardData(x.cid).effect.ops.some((o) => o.op === "lock_spells")))
+          return "Your opponent's Arcane Gag stops you from activating Spells for now.";
         if (forCard.some((a) => a.kind === "activate_spell")) {
           if (c.subtype === "equip") return `Equip ${c.name} to one of your face-up monsters: ${short(c.text)}`;
           if (c.subtype === "quickplay") return `${c.name} is a Quick-Play: use it now, or Set it to spring on your opponent's turn.`;
@@ -90,6 +96,9 @@ export function guideMessage(view, actions, decider, sel, choose) {
         if (forCard.some((a) => a.kind === "activate_spell")) return "Use a Quick-Play Spell on this monster before attacking.";
         return "An effect is preventing your monsters from attacking.";
       }
+      if (actions.some((a) => a.kind === "contact_fusion" && a.materials.includes(sel)))
+        return `${c.name} can Combine with another monster on your field into a Level 7+ Fusion: press Combine.`;
+      if (c.fusion_substitute) return `${c.name} is a Herald: it can stand in for any one Fusion Material when you Combine.`;
       if (forCard.some((a) => a.kind === "flip_summon")) return "You can Flip Summon this face-down monster into Attack Position.";
       if (forCard.some((a) => a.kind === "change_position")) return `You can change ${c.name}'s battle position once this turn.`;
       if (fieldMon.summoned_this_turn) return "A monster can't change position on the turn it arrived.";
@@ -98,6 +107,7 @@ export function guideMessage(view, actions, decider, sel, choose) {
     }
     if (c && setCard) {
       if (forCard.some((a) => a.kind === "activate_spell")) return `You can activate your Set ${c.name} now.`;
+      if (forCard.some((a) => a.kind === "activate_trap")) return `${c.name} can be activated right now, on your own turn.`;
       if (c.type === "trap") return `${c.name} will offer to activate when its condition happens on your opponent's turn.`;
       return `${c.name} is waiting face-down.`;
     }
@@ -141,7 +151,10 @@ function spellReason(c, view) {
   if (ops.includes("fusion_summon")) return "Fusion Summons need a Level 7+ Fusion Monster in your Extra Deck and both of its exact materials in your hand or on your field.";
   if (ops.includes("equip") || ops.includes("boost")) return "You need a face-up monster on your field to target.";
   if (ops.includes("destroy_target_st")) return "Your opponent has no Spell or Trap cards to destroy.";
-  if (ops.includes("search_deck")) return "There are no matching monsters left in your Deck.";
+  if (ops.includes("search_deck")) return "There are no matching cards left in your Deck.";
+  if (ops.includes("special_two_from_deck")) return "Rally Call needs 2 free monster zones and 2 different Level 4 or lower monsters in your Deck.";
+  if (ops.includes("tribute_for_best")) return "Grand Offering needs 2 monsters on your field to Tribute and a Level 7+ monster in your hand or Deck.";
+  if (ops.includes("recover_gy")) return "There are no monsters in your Graveyard to take back.";
   if (view.players[me].st.every(Boolean)) return "Your Spell & Trap zones are full.";
   return "Its activation conditions aren't met right now.";
 }
