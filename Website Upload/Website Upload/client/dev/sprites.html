@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sprite Sheet</title>
+<style>
+  body { margin: 0; background: #1b1e2e; color: #dfe6ff; font: 13px system-ui, sans-serif; }
+  h1 { font-size: 16px; margin: 12px 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(760px, 1fr)); gap: 12px; padding: 0 16px 16px; }
+  .cell { background: #2a2f48; border-radius: 8px; padding: 8px; }
+  .cell b { display: block; margin-bottom: 6px; }
+  canvas { image-rendering: pixelated; background: repeating-conic-gradient(#323853 0 25%, #2a2f48 0 50%) 0 0 / 16px 16px; }
+</style>
+</head>
+<body>
+<h1>Sprite sheet: idle · charge · attack lunge · defense (dev tool, nearest-neighbour ×4)</h1>
+<div class="grid" id="grid"></div>
+<script type="module">
+  import { loadCards, allCards } from "../js/carddb.js";
+  import { SpriteRenderer } from "../js/render/pixel.js";
+  import { basePose } from "../js/render/rigs.js";
+  await loadCards();
+  const poses = [
+    (p) => p,
+    (p) => Object.assign(p, { raise: 1, charge: 1, jaw: 0.7 }),
+    (p) => Object.assign(p, { lunge: 1, jaw: 1, slash: 1 }),
+    (p) => Object.assign(p, { crouch: 1 }),
+  ];
+  const ZOOM = 6, PIXEL_LOGICAL = 2.6;
+  for (const c of allCards().filter((c) => c.type === "monster")) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.innerHTML = `<b>${c.name} · ${c.visual.rig}</b>`;
+    const spr = new SpriteRenderer(c.visual);
+    // Same pixel density as on the board: a ~130-logical-px figure at the near edge.
+    const vs = c.visual.scale || 1;
+    const k = Math.min(150 * vs, Math.max(100, 240 * 0.5 * vs)) / spr.rig.height;
+    const R = PIXEL_LOGICAL / k;
+    const frames = poses.map((f) => { const fr = spr.render(f(basePose(0.6)), R); const cv = document.createElement("canvas"); cv.width = fr.w; cv.height = fr.h; cv.getContext("2d").drawImage(fr.canvas, 0, 0); return cv; });
+    // Trim to the union of opaque pixels across frames.
+    let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+    for (const f of frames) {
+      const d = f.getContext("2d").getImageData(0, 0, f.width, f.height).data;
+      for (let y = 0; y < f.height; y++) for (let x = 0; x < f.width; x++) if (d[(y * f.width + x) * 4 + 3]) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    }
+    const out = document.createElement("canvas");
+    const fw = x1 - x0 + 3, fh = y1 - y0 + 3;
+    out.width = fw * frames.length * ZOOM; out.height = fh * ZOOM;
+    out.style.width = `${out.width / 2}px`;
+    const o = out.getContext("2d");
+    o.imageSmoothingEnabled = false;
+    frames.forEach((f, i) => o.drawImage(f, x0 - 1, y0 - 1, fw, fh, i * fw * ZOOM, 0, fw * ZOOM, fh * ZOOM));
+    cell.appendChild(out);
+    document.getElementById("grid").appendChild(cell);
+  }
+</script>
+</body>
+</html>

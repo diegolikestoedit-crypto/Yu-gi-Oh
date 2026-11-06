@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Living Duel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Nunito+Sans:wght@400;600;800&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <div id="ui">
+    <!-- MAIN MENU -->
+    <section id="screen-menu" class="screen">
+      <div class="menu-left">
+        <div class="title-block">
+          <div class="title-kicker">A living card battle</div>
+          <h1 class="game-title">Living Duel</h1>
+          <div class="title-sub">Summon. Clash. Transform the field.</div>
+        </div>
+        <nav class="menu-list">
+          <button class="menu-btn primary" data-go="solo"><span class="mb-icon">♜</span><span class="mb-text"><b>Solo Duel</b><small>Play against the computer</small></span><kbd>1</kbd></button>
+          <button class="menu-btn primary" data-go="online"><span class="mb-icon">⚔</span><span class="mb-text"><b>Online Duel</b><small>Create or join a private room with a friend</small></span><kbd>2</kbd></button>
+          <button class="menu-btn" data-go="collection"><span class="mb-icon">❖</span><span class="mb-text"><b>Collection</b><small>Browse every card and monster</small></span><kbd>3</kbd></button>
+          <button class="menu-btn locked" disabled><span class="mb-icon">✎</span><span class="mb-text"><b>Deck Builder</b><small>Coming soon</small></span></button>
+          <button class="menu-btn locked" disabled><span class="mb-icon">★</span><span class="mb-text"><b>Progression</b><small>Coming soon</small></span></button>
+          <button class="menu-btn" data-go="settings"><span class="mb-icon">⚙</span><span class="mb-text"><b>Settings</b><small>Guide, speed, visuals, audio</small></span><kbd>4</kbd></button>
+        </nav>
+      </div>
+      <div class="menu-right">
+        <div class="showcase">
+          <canvas id="showcase" width="560" height="460"></canvas>
+          <div class="showcase-plate"><div class="sp-name" id="sp-name"></div><div class="sp-meta" id="sp-meta"></div></div>
+        </div>
+      </div>
+      <div class="menu-foot">Original characters, cards and music · Solo duels and two-player online duels · <b>Version 5</b> (smoother)</div>
+    </section>
+
+    <!-- ONLINE LOBBY -->
+    <section id="screen-online" class="screen hidden">
+      <div class="lobby-wrap">
+        <header class="lobby-head">
+          <button class="back-btn" data-go="menu">‹ Menu</button>
+          <h2 id="lobby-title">Online Duel</h2>
+          <div class="conn" id="conn-status"><span class="dot"></span><span class="txt">Connecting…</span></div>
+        </header>
+
+        <div id="lobby-entry" class="entry">
+          <div class="panel entry-card">
+            <label class="field">Duelist name <input id="in-name" maxlength="16" autocomplete="off" placeholder="Your name"></label>
+            <div class="entry-cols">
+              <div class="entry-col">
+                <h3 class="online-only">Create a private room</h3>
+                <h3 class="solo-only">Duel the computer</h3>
+                <div class="field">Rules
+                  <div class="seg big" id="seg-profile"></div>
+                </div>
+                <p class="hint" id="profile-summary"></p>
+                <label class="toggle"><input type="checkbox" id="in-showcase" checked><span class="tg"></span><span>Showcase opening: each deck's signature monster starts in hand</span></label>
+                <div class="field solo-only">Computer difficulty
+                  <div class="seg big seg-difficulty" id="seg-difficulty-entry"></div>
+                </div>
+                <button class="btn primary wide online-only" id="btn-create">Create Room</button>
+                <button class="btn primary wide solo-only" id="btn-solo">Continue</button>
+              </div>
+              <div class="entry-divider online-only"><span>or</span></div>
+              <div class="entry-col online-only">
+                <h3>Join a friend</h3>
+                <label class="field">Room code <input id="in-code" maxlength="5" autocomplete="off" placeholder="ABCDE" class="code-input"></label>
+                <button class="btn wide" id="btn-join">Join Room</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="lobby-room" class="room hidden">
+          <div class="room-top">
+            <div class="panel room-code-card">
+              <div class="online-only rc-group">
+                <div class="rc-label">Room code</div>
+                <div class="room-code" id="room-code"></div>
+                <button class="btn small" id="btn-copy">Copy invite link</button>
+              </div>
+              <div class="solo-only rc-group">
+                <div class="rc-label">Computer difficulty</div>
+                <div class="seg seg-difficulty" id="seg-difficulty-room"></div>
+              </div>
+              <div class="room-rules" id="room-rules"></div>
+            </div>
+            <div class="seats" id="seats"></div>
+          </div>
+          <div class="panel deck-panel">
+            <div class="deck-head"><h3><span class="step">1</span> Choose the battlefield</h3><span class="hint" id="arena-hint"></span></div>
+            <div class="arena-gallery" id="arena-gallery"></div>
+          </div>
+          <div class="panel deck-panel">
+            <div class="deck-head"><h3><span class="step">2</span> <span id="deck-step-title">Choose your deck</span></h3>
+              <div class="seg solo-only" id="seg-pick"><button data-v="me" class="on">Your duelist</button><button data-v="bot">Opponent</button></div>
+              <span class="hint" id="deck-hint">Pick a preset deck before you ready up.</span></div>
+            <div class="deck-gallery" id="deck-gallery"></div>
+          </div>
+          <div class="room-actions">
+            <button class="btn" id="btn-leave">Leave Room</button>
+            <button class="btn primary xl" id="btn-ready">Ready</button>
+          </div>
+        </div>
+        <div class="error" id="lobby-error"></div>
+      </div>
+    </section>
+
+    <!-- COLLECTION -->
+    <section id="screen-collection" class="screen hidden">
+      <div class="panel wide">
+        <header class="col-head">
+          <h2>Collection</h2>
+          <div class="filters">
+            <input id="col-search" placeholder="Search name, type or text…">
+            <div class="seg" id="col-type"><button data-v="" class="on">All</button><button data-v="monster">Monsters</button><button data-v="spell">Spells</button><button data-v="trap">Traps</button></div>
+          </div>
+          <button class="back-btn" data-go="menu">‹ Menu</button>
+        </header>
+        <div class="col-grid" id="col-grid"></div>
+      </div>
+    </section>
+
+    <!-- DUEL HUD -->
+    <section id="screen-duel" class="screen hidden">
+      <div class="lp-panel me" id="lp-me"><div class="avatar"></div><div class="lp-body"><div class="lp-name"></div><div class="lp-row"><span class="lp-tag">LP</span><span class="lp-num">0</span></div><div class="lp-bar"><div class="lp-fill"></div></div></div></div>
+      <div class="lp-panel opp" id="lp-opp"><div class="avatar"></div><div class="lp-body"><div class="lp-name"></div><div class="lp-row"><span class="lp-tag">LP</span><span class="lp-num">0</span></div><div class="lp-bar"><div class="lp-fill"></div></div></div></div>
+      <div class="top-buttons">
+        <button class="icon-btn" id="btn-settings" title="Settings (Esc)">⚙</button>
+        <button class="icon-btn" id="btn-guide" title="Toggle guide (G)">?</button>
+        <button class="icon-btn" id="btn-log" title="Duel log (L)">☰</button>
+      </div>
+      <button class="medallion" id="medallion" title="Change phase: B Battle · M Main 2 · E End turn"><span class="m-turn" id="m-turn">Turn 1</span><span class="m-phase" id="m-phase">Draw</span></button>
+      <div class="phase-menu hidden" id="phase-menu"></div>
+      <div class="prompt hidden" id="prompt"></div>
+      <div class="opp-hand" id="opp-hand"></div>
+      <div class="hand" id="hand"></div>
+      <div class="detail hidden" id="selection"></div>
+      <div class="bubbles hidden" id="bubbles"></div>
+      <div class="log hidden" id="log"><div class="log-head">Duel log<button id="log-close" title="Close (L)">×</button></div><ol class="log-list" id="log-list"></ol></div>
+      <div class="guide" id="guide">
+        <div class="guide-head"><span class="guide-orb"></span><span>Guide</span><button class="guide-min" id="guide-min" title="Minimize">–</button><button class="guide-close" id="guide-close" title="Turn guide off (G)">×</button></div>
+        <div class="guide-body" id="guide-body"></div>
+      </div>
+      <div class="banner hidden" id="banner"></div>
+      <div class="skip-hint hidden" id="skip-hint">Click or press Space to speed up</div>
+      <div class="confirm hidden" id="confirm"></div>
+      <div class="end-screen hidden" id="end-screen"></div>
+      <div class="opp-status hidden" id="opp-status"></div>
+    </section>
+
+    <!-- SETTINGS (modal) -->
+    <div class="modal hidden" id="modal-settings">
+      <div class="panel settings">
+        <header class="set-head"><h2>Settings</h2>
+          <div class="tabs" id="set-tabs"><button data-tab="play" class="on">Gameplay</button><button data-tab="visual">Visuals</button><button data-tab="audio">Audio</button></div>
+        </header>
+        <div class="set-page" data-page="play">
+          <div class="setting-row"><span>In-game guide<small>Short, contextual hints in the corner</small></span>
+            <div class="seg" data-setting="guide"><button data-v="true">On</button><button data-v="false">Off</button></div></div>
+          <div class="setting-row"><span>Suggested plays<small>The guide recommends a move and explains why. You always make the final decision.</small></span>
+            <div class="seg" data-setting="guideHints"><button data-v="true">On</button><button data-v="false">Off</button></div></div>
+          <div class="setting-row"><span>Animation speed<small>Click or Space speeds up any sequence</small></span>
+            <div class="seg" data-setting="animSpeed"><button data-v="1">Normal</button><button data-v="1.6">Fast</button><button data-v="2.5">Very fast</button></div></div>
+          <div class="setting-row"><span>Skip responses I can't make<small>Auto-pass after a short random delay, so nothing is revealed</small></span>
+            <div class="seg" data-setting="autoPass"><button data-v="true">On</button><button data-v="false">Off</button></div></div>
+          <div class="setting-row"><span>Confirm ending the turn<small>Ask when you could still summon or attack</small></span>
+            <div class="seg" data-setting="confirmEnd"><button data-v="true">On</button><button data-v="false">Off</button></div></div>
+          <div class="setting-row"><span>Keyboard shortcuts<small>Space speed · B battle · M main 2 · E end turn · G guide · L log · Esc close</small></span></div>
+        </div>
+        <div class="set-page hidden" data-page="visual">
+          <div class="setting-row"><span>Monster figures<small>Show living monsters always, or only when they act</small></span>
+            <div class="seg" data-setting="figures"><button data-v="always">Always</button><button data-v="action">During actions</button></div></div>
+          <div class="setting-row"><span>Camera motion<small>Cinematic zooms and shakes</small></span>
+            <div class="seg" data-setting="camera"><button data-v="true">Cinematic</button><button data-v="false">Minimal</button></div></div>
+          <div class="setting-row"><span>Effects quality<small>Particle density</small></span>
+            <div class="seg" data-setting="quality"><button data-v="high">High</button><button data-v="low">Low</button></div></div>
+        </div>
+        <div class="set-page hidden" data-page="audio">
+          <div class="setting-row"><span>Music</span><input type="range" min="0" max="1" step="0.05" data-setting="music"></div>
+          <div class="setting-row"><span>Sound effects</span><input type="range" min="0" max="1" step="0.05" data-setting="sfx"></div>
+          <div class="setting-row"><span>Monster sounds</span><input type="range" min="0" max="1" step="0.05" data-setting="monster"></div>
+          <div class="setting-row"><span>Interface sounds</span><input type="range" min="0" max="1" step="0.05" data-setting="ui"></div>
+          <div class="setting-row"><span>Mute all audio</span>
+            <div class="seg" data-setting="muted"><button data-v="false">Sound on</button><button data-v="true">Muted</button></div></div>
+        </div>
+        <div class="settings-foot">
+          <button class="btn danger hidden" id="btn-concede">Surrender duel</button>
+          <button class="btn primary" id="btn-close-settings">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD INSPECTOR -->
+    <div class="modal hidden" id="modal-inspect">
+      <div class="panel inspect" id="inspect-body"></div>
+    </div>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

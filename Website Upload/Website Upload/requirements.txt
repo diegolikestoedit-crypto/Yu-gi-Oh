@@ -1,0 +1,1 @@
+# No dependencies: Living Duel uses only the Python standard library.

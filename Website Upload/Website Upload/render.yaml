@@ -1,0 +1,12 @@
+# Render.com blueprint: free web service running Living Duel (standard-library Python, nothing to install).
+services:
+  - type: web
+    name: living-duel
+    runtime: python
+    plan: free
+    buildCommand: "echo 'No dependencies to install'"
+    startCommand: "python3 server/server.py"
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
