@@ -14,9 +14,10 @@ import { Environment } from "./render/env.js";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-const state = { screen: "menu", decks: [], profiles: {}, room: null, seat: null, inDuel: false, showingEnd: false };
+const state = { screen: "menu", decks: [], profiles: {}, room: null, seat: null, inDuel: false, showingEnd: false, solo: false, pick: "me" };
+const DIFFICULTIES = [["easy", "Easy"], ["normal", "Normal"], ["hard", "Hard"]];
 let stage, net, ui, director, showcase;
-let profileChoice = settings.get("lastProfile") || "frontier";
+let profileChoice = settings.get("lastProfile") || "citadel";
 let colType = "";
 
 function show(screen) {
@@ -24,6 +25,7 @@ function show(screen) {
   for (const s of ["menu", "online", "collection", "duel"]) $(`screen-${s}`).classList.toggle("hidden", s !== screen);
   stage.active = screen === "duel";
   if (screen === "collection") renderCollection();
+  if (screen === "online") renderLobby();
   if (showcase) screen === "menu" ? showcase.start() : showcase.stop();
 }
 
@@ -34,8 +36,17 @@ function deckCounts(deck) {
   return n;
 }
 
+function renderDifficulty(seg, current, onPick) {
+  seg.innerHTML = DIFFICULTIES.map(([k, n]) => `<button data-v="${k}" class="${k === current ? "on" : ""}">${n}</button>`).join("");
+  seg.querySelectorAll("button").forEach((b) => (b.onclick = () => { if (b.dataset.v !== current) { audio.play("ui_click"); onPick(b.dataset.v); } }));
+}
+
 function renderLobby() {
   const room = state.room;
+  const solo = room ? !!room.solo : state.solo;
+  $("screen-online").classList.toggle("solo", solo);
+  $("lobby-title").textContent = solo ? "Solo Duel" : "Online Duel";
+  if (!room) renderDifficulty($("seg-difficulty-entry"), settings.get("difficulty") || "normal", (v) => { settings.set("difficulty", v); renderLobby(); });
   $("lobby-entry").classList.toggle("hidden", !!room);
   $("lobby-room").classList.toggle("hidden", !room);
   if (!room) return;
@@ -54,22 +65,34 @@ function renderLobby() {
       const deck = state.decks.find((x) => x.id === s.deck);
       const du = deck && deck.duelist;
       d.className = `seat p${i + 1}` + (i === state.seat ? " you" : "") + (s.ready ? " ready" : "");
-      d.innerHTML = `<div class="s-av">${esc(s.name.charAt(0).toUpperCase())}</div>
-        <div class="s-info"><div class="s-name">${esc(s.name)}${i === state.seat ? " (you)" : ""}</div>
-        <div class="s-meta">${i === 0 ? "Host · " : ""}${du ? `Playing as <b>${esc(du.name)}</b> · ` : ""}${esc(deck ? deck.name : s.deck)}${s.connected ? "" : " · <span style='color:var(--bad)'>disconnected</span>"}</div>
-        <span class="s-ready ${s.ready ? "on" : ""}">${s.ready ? "READY" : "CHOOSING…"}</span></div>
+      const level = s.bot && DIFFICULTIES.find(([k]) => k === room.difficulty);
+      d.innerHTML = `<div class="s-av${s.bot ? " bot" : ""}">${s.bot ? "♜" : esc(s.name.charAt(0).toUpperCase())}</div>
+        <div class="s-info"><div class="s-name">${esc(s.name)}${i === state.seat ? " (you)" : ""}${s.bot ? `<span class="s-bot">COMPUTER</span>` : ""}</div>
+        <div class="s-meta">${s.bot ? `${level ? level[1] : ""} · ` : i === 0 && !room.solo ? "Host · " : ""}${du && !s.bot ? `Playing as <b>${esc(du.name)}</b> · ` : ""}${esc(deck ? deck.name : s.deck)}${s.connected ? "" : " · <span style='color:var(--bad)'>disconnected</span>"}</div>
+        <span class="s-ready ${s.ready ? "on" : ""}">${s.bot ? "WAITING FOR YOU" : s.ready ? "READY" : "CHOOSING…"}</span></div>
         ${deck && deck.signature ? `<img class="s-cover" src="${spriteCover(deck.signature, 72)}" alt="">` : ""}`;
     }
     seats.appendChild(d);
   });
   const me = room.seats[state.seat];
+  if (room.solo) {
+    renderDifficulty($("seg-difficulty-room"), room.difficulty, (v) => { settings.set("difficulty", v); net.send({ t: "settings", difficulty: v }); });
+    $("seg-pick").querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("on", b.dataset.v === state.pick);
+      b.onclick = () => { audio.play("ui_click"); state.pick = b.dataset.v; renderLobby(); };
+    });
+  } else state.pick = "me";
+  $("deck-step-title").textContent = room.solo ? (state.pick === "bot" ? "Choose your opponent" : "Choose your duelist") : "Choose your deck";
   renderArenas(room);
-  renderDecks(me);
+  renderDecks(me, room);
   ui.seatColors = room.seats.map((s) => { const dk = s && state.decks.find((x) => x.id === s.deck); return dk && dk.duelist ? dk.duelist.color : null; });
   if (me) {
-    $("btn-ready").textContent = me.ready ? "Cancel Ready" : "Ready";
+    $("btn-ready").textContent = room.solo ? "Start Duel" : me.ready ? "Cancel Ready" : "Ready";
+    $("btn-leave").textContent = room.solo ? "Back" : "Leave Room";
     $("btn-ready").disabled = !room.seats[1 - state.seat];
-    $("deck-hint").textContent = me.ready ? "You're ready. Cancel ready to change decks." : "Pick a preset deck, then press Ready.";
+    $("deck-hint").textContent = room.solo
+      ? (state.pick === "bot" ? "Pick who the computer plays as." : "Pick your deck, then press Start Duel.")
+      : me.ready ? "You're ready. Cancel ready to change decks." : "Pick a preset deck, then press Ready.";
   }
 }
 
@@ -96,7 +119,7 @@ function renderArenas(room) {
   const g = $("arena-gallery");
   const host = state.seat === 0;
   const me = room.seats[state.seat];
-  $("arena-hint").textContent = host ? "You're the host: pick where the duel takes place." : "The host picks the battlefield.";
+  $("arena-hint").textContent = room.solo ? "Pick where the duel takes place." : host ? "You're the host: pick where the duel takes place." : "The host picks the battlefield.";
   g.innerHTML = "";
   for (const a of ARENA_LIST) {
     const t = document.createElement("div");
@@ -116,7 +139,9 @@ function renderArenas(room) {
 
 const ROLES = [["hero", "Hero"], ["rival", "Rival"], ["friend", "Friends"], ["villain", "Villains"]];
 
-function renderDecks(me) {
+function renderDecks(me, room) {
+  const bot = room && room.solo ? room.seats[1] : null;
+  const pickBot = bot && state.pick === "bot";
   const g = $("deck-gallery");
   g.innerHTML = "";
   const order = (d) => ROLES.findIndex(([r]) => r === (d.duelist && d.duelist.role));
@@ -125,15 +150,22 @@ function renderDecks(me) {
     const du = d.duelist || { name: d.name, title: "", role: "", color: "#f4cf6a" };
     const n = deckCounts(d);
     const t = document.createElement("div");
-    t.className = "deck-tile" + (me && me.deck === d.id ? " on" : "");
+    const chosen = pickBot ? bot.deck === d.id : me && me.deck === d.id;
+    t.className = "deck-tile" + (chosen ? pickBot ? " on opp-pick" : " on" : "");
     t.style.setProperty("--duelist", du.color);
-    t.innerHTML = `<div class="dt-check">✓</div><button class="dt-view">View list</button>
+    t.innerHTML = `${bot && bot.deck === d.id && !pickBot ? `<div class="dt-vs">OPPONENT</div>` : ""}<div class="dt-check">✓</div><button class="dt-view">View list</button>
       <div class="dt-art">${d.signature ? `<img src="${spriteCover(d.signature, 80)}" alt="">` : ""}</div>
       <div class="dt-body"><div class="dt-role">${esc(du.role.toUpperCase())}</div><div class="dt-name">${esc(du.name)}</div>
       <div class="dt-title">${esc(du.title)} · <b>${esc(d.name)}</b></div><div class="dt-desc">${esc(d.description || "")}</div>
       <div class="dt-stats"><span class="m">${n.m} Monsters</span><span class="s">${n.s} Spells</span><span class="t">${n.t} Traps</span></div></div>`;
     t.onclick = (e) => {
       if (e.target.classList.contains("dt-view")) return;
+      if (pickBot) {
+        if (bot.deck === d.id) return;
+        audio.play("ui_click");
+        settings.set("lastBotDeck", d.id);
+        return net.send({ t: "settings", bot_deck: d.id });
+      }
       if (!me || me.ready || me.deck === d.id) return;
       audio.play("ui_click");
       settings.set("lastDeck", d.id);
@@ -355,8 +387,12 @@ async function boot() {
   addEventListener("pointerdown", () => audio.unlock(), { once: false });
   document.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => {
     audio.unlock(); audio.play("ui_click");
-    const go = b.dataset.go;
+    let go = b.dataset.go;
     if (go === "settings") return openSettings();
+    if (go === "solo" || go === "online") {
+      if (!state.room) state.solo = go === "solo";
+      go = "online";
+    }
     show(go);
   }));
   $("in-name").value = settings.get("name") || "";
@@ -366,6 +402,13 @@ async function boot() {
   $("btn-create").onclick = () => {
     audio.play("ui_click");
     net.send({ t: "create", name: playerName(), deck: settings.get("lastDeck") || "radiant", profile: profileChoice, showcase: $("in-showcase").checked, arena: settings.get("lastArena") || "meadow" });
+  };
+  $("btn-solo").onclick = () => {
+    audio.play("ui_click");
+    state.pick = "me";
+    net.send({ t: "create", solo: true, name: playerName(), deck: settings.get("lastDeck") || "radiant", profile: profileChoice,
+      showcase: $("in-showcase").checked, arena: settings.get("lastArena") || "meadow",
+      difficulty: settings.get("difficulty") || "normal", bot_deck: settings.get("lastBotDeck") || undefined });
   };
   $("btn-join").onclick = () => {
     audio.play("ui_click");
@@ -400,7 +443,7 @@ async function boot() {
   // Menu shortcuts.
   addEventListener("keydown", (e) => {
     if (state.screen !== "menu" || e.target.tagName === "INPUT" || !$("modal-settings").classList.contains("hidden")) return;
-    const go = { Digit1: "online", Digit2: "collection", Digit3: "settings" }[e.code];
+    const go = { Digit1: "solo", Digit2: "online", Digit3: "collection", Digit4: "settings" }[e.code];
     if (go) document.querySelector(`[data-go="${go}"]`).click();
   });
   ui.onRematch = () => {

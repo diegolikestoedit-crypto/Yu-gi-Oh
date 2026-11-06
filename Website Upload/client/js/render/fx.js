@@ -403,3 +403,135 @@ export class CardFlash extends Effect {
     ctx.restore();
   }
 }
+
+// ------------------------------------------------------------- destruction
+// Breaks an image (a monster's current sprite frame, or a card face) into jagged pieces that fly apart.
+// The pieces share a jittered vertex grid, so before they move the picture looks whole; each one then
+// leaves on a delay that grows with its distance from the point of impact.
+export class Shatter extends Effect {
+  constructor(o) {
+    super(o);
+    const cols = o.cols || 6, rows = o.rows || 7;
+    const V = [];
+    for (let j = 0; j <= rows; j++) {
+      V.push([]);
+      for (let i = 0; i <= cols; i++) {
+        const edge = i === 0 || j === 0 || i === cols || j === rows;
+        V[j].push({ x: (i + (edge ? 0 : rand(-0.38, 0.38))) / cols * o.w, y: (j + (edge ? 0 : rand(-0.38, 0.38))) / rows * o.h });
+      }
+    }
+    const origin = o.origin || { x: o.x + o.w / 2, y: o.y + o.h / 2 };
+    const maxD = Math.hypot(o.w, o.h);
+    const power = o.power || 1;
+    this.shards = [];
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const a = V[j][i], b = V[j][i + 1], c = V[j + 1][i + 1], d = V[j + 1][i];
+      const tris = Math.random() < 0.5 ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]];
+      for (const pts of tris) {
+        const cx = (pts[0].x + pts[1].x + pts[2].x) / 3, cy = (pts[0].y + pts[1].y + pts[2].y) / 3;
+        const wx = o.x + cx, wy = o.y + cy;
+        const dx = wx - origin.x, dy = wy - origin.y, dist = Math.hypot(dx, dy) || 1;
+        const sp = rand(160, 420) * power * (1.1 - dist / maxD * 0.5);
+        this.shards.push({
+          pts: pts.map((p) => ({ x: p.x - cx, y: p.y - cy })), cx, cy, x: wx, y: wy,
+          vx: (dx / dist) * sp + rand(-40, 40), vy: (dy / dist) * sp * 0.6 - rand(120, 300) * power,
+          rot: 0, spin: rand(-7, 7) * power, delay: (dist / maxD) * (o.spread ?? 0.22), bounced: false,
+        });
+      }
+    }
+    this.floor = o.floor ?? o.y + o.h + 10;
+    // A silhouette in the tint colour, so the glow only lights the picture's own pixels, never the gaps.
+    if (o.tint) {
+      const t = document.createElement("canvas");
+      t.width = o.img.width; t.height = o.img.height;
+      const c = t.getContext("2d");
+      c.drawImage(o.img, 0, 0);
+      c.globalCompositeOperation = "source-atop";
+      c.fillStyle = o.tint; c.fillRect(0, 0, t.width, t.height);
+      this.tintImg = t;
+    }
+  }
+  update(dt) {
+    super.update(dt);
+    for (const s of this.shards) {
+      if (this.age < s.delay) continue;
+      s.vy += (this.grav ?? 900) * dt;
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      s.rot += s.spin * dt;
+      if (s.y > this.floor && s.vy > 0) {
+        s.y = this.floor; s.vy *= -0.32; s.vx *= 0.6; s.spin *= 0.5;
+        if (!s.bounced && this.particles) this.particles.spawn({ x: s.x, y: s.y, vx: rand(-30, 30), vy: rand(-60, -20), life: 0.5, size: rand(4, 9), color: this.dust || "#8a8070", kind: "smoke", additive: false });
+        s.bounced = true;
+      }
+    }
+  }
+  draw(ctx) {
+    const p = this.p;
+    const alpha = p < 0.55 ? 1 : Math.max(0, 1 - (p - 0.55) / 0.45);
+    if (alpha <= 0) return;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    for (const s of this.shards) {
+      const moving = this.age >= s.delay;
+      const t = moving ? Math.min(1, (this.age - s.delay) / 0.35) : 0;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
+      ctx.beginPath();
+      ctx.moveTo(s.pts[0].x, s.pts[0].y); ctx.lineTo(s.pts[1].x, s.pts[1].y); ctx.lineTo(s.pts[2].x, s.pts[2].y); ctx.closePath();
+      ctx.save();
+      ctx.clip();
+      ctx.drawImage(this.img, -s.cx, -s.cy, this.w, this.h);
+      // Freshly broken faces catch the light, then cool down.
+      if (this.tintImg && t < 1) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = alpha * (1 - t) * 0.7; ctx.drawImage(this.tintImg, -s.cx, -s.cy, this.w, this.h); }
+      ctx.restore();
+      if (this.edge) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = alpha * (moving ? 1 - t * 0.7 : 0.25);
+        ctx.strokeStyle = this.edge; ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+// Jagged glowing fractures spreading across a rectangle from an impact point.
+export class Cracks extends Effect {
+  constructor(o) {
+    super(o);
+    const n = o.count || 7;
+    this.lines = [];
+    for (let i = 0; i < n; i++) {
+      let a = (i / n) * TAU + rand(-0.3, 0.3), x = 0, y = 0;
+      const pts = [{ x, y }];
+      const len = rand(0.45, 0.8) * Math.max(o.w, o.h);
+      for (let k = 0; k < 6; k++) {
+        a += rand(-0.6, 0.6);
+        x += Math.cos(a) * len / 6; y += Math.sin(a) * len / 6;
+        pts.push({ x, y });
+      }
+      this.lines.push(pts);
+    }
+  }
+  draw(ctx) {
+    const grow = ease(Math.min(1, this.p / 0.6));
+    const o = this.pos(this.origin);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(this.x, this.y, this.w, this.h); ctx.clip();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = this.p < 0.8 ? 1 : (1 - this.p) / 0.2;
+    ctx.strokeStyle = this.color || "#ffffff";
+    ctx.shadowColor = this.color || "#ffffff"; ctx.shadowBlur = 10;
+    ctx.lineWidth = 2.2; ctx.lineJoin = "miter";
+    for (const pts of this.lines) {
+      const upto = Math.max(1, Math.floor(grow * (pts.length - 1)));
+      ctx.beginPath(); ctx.moveTo(o.x + pts[0].x, o.y + pts[0].y);
+      for (let k = 1; k <= upto; k++) ctx.lineTo(o.x + pts[k].x, o.y + pts[k].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}

@@ -151,6 +151,20 @@ export class Actor {
     return t;
   }
 
+  // The monster exactly as it is drawn right now, for effects that break it apart.
+  snapshot() {
+    const f = this.spriteFrame();
+    const Ld = this.lastLd || PIXEL * this.home.s;
+    const cv = document.createElement("canvas");
+    cv.width = f.w; cv.height = f.h;
+    const c = cv.getContext("2d");
+    if (this.facing < 0) { c.translate(f.w, 0); c.scale(-1, 1); }
+    c.drawImage(this.shaded(f), 0, 0);
+    const w = f.w * Ld, h = f.h * Ld;
+    const x = this.facing > 0 ? this.x - f.ox * Ld : this.x + f.ox * Ld - w;
+    return { img: cv, x, y: this.y - f.oy * Ld, w, h };
+  }
+
   draw(ctx, pr) {
     if (this.hidden || this.alpha * this.visibility <= 0.001) return;
     const f = this.spriteFrame();
@@ -161,6 +175,7 @@ export class Actor {
     this.drawK = Ld / this.grow / f.R;
     const s = this.drawK * this.grow;
     const img = this.shaded(f);
+    this.lastLd = Ld;
 
     // shadow on the floor
     ctx.save();
@@ -177,7 +192,7 @@ export class Actor {
     ctx.translate(Math.round(this.x * pr) / pr, Math.round(this.y * pr) / pr);
     ctx.scale(this.facing, 1);
     if (this.highlight) {
-      ctx.shadowColor = this.highlight === "target" ? "#ff6a6a" : this.highlight === "selected" ? "#ffe58a" : "#6dffa8";
+      ctx.shadowColor = { target: "#ff6a6a", selected: "#ffe58a", hint: "#7ae8ff" }[this.highlight] || "#6dffa8";
       ctx.shadowBlur = 22 + Math.sin(this.pose.t * 6) * 6;
     }
     ctx.drawImage(img, -f.ox * Ld, -f.oy * Ld, f.w * Ld, f.h * Ld);

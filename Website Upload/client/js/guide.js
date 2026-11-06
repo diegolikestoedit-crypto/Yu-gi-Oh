@@ -22,10 +22,12 @@ export function guideMessage(view, actions, decider, sel, choose) {
     return "It's your opponent's turn. Click any face-up card or monster to inspect it while you wait.";
   }
   if (pend && pend.kind === "response") {
-    const traps = actions.filter((a) => a.kind === "activate_trap");
-    const what = pend.trigger === "opp_attack" ? "Your opponent declared an attack." : "Your opponent just summoned a monster.";
+    const traps = actions.filter((a) => a.kind === "activate_trap" || a.kind === "activate_quick");
+    const what = pend.trigger === "opp_attack" ? "Your opponent declared an attack."
+      : pend.trigger === "opp_spell" ? "Your opponent is activating a Spell. A Counter Trap or a Set Quick-Play can answer it before it resolves."
+      : "Your opponent just summoned a monster.";
     return traps.length
-      ? `${what} You have a Trap that can respond: activate it now, or let it go.`
+      ? `${what} You have a Set card that can respond: use it now, or let it go.`
       : `${what} None of your Set cards can respond to this, so choose "Don't respond".`;
   }
   if (pend && pend.kind === "discard") return `Hand limit: you hold ${mine.hand.length} cards. Choose one to discard.`;
@@ -63,12 +65,19 @@ export function guideMessage(view, actions, decider, sel, choose) {
         return "This monster can't be summoned right now.";
       }
       if (c.type === "spell") {
-        if (forCard.some((a) => a.kind === "activate_spell")) return `Activate ${c.name}: ${short(c.text)}`;
-        if (!inMain) return "Spells are used during your Main Phase.";
+        if (forCard.some((a) => a.kind === "activate_spell")) {
+          if (c.subtype === "equip") return `Equip ${c.name} to one of your face-up monsters: ${short(c.text)}`;
+          if (c.subtype === "quickplay") return `${c.name} is a Quick-Play: use it now, or Set it to spring on your opponent's turn.`;
+          return `Activate ${c.name}: ${short(c.text)}`;
+        }
+        if (phase === "battle" && c.subtype !== "quickplay") return "Only Quick-Play Spells can be used during the Battle Phase.";
+        if (!inMain && c.subtype !== "quickplay") return "Spells are used during your Main Phase.";
         const reason = spellReason(c, view);
         return `${reason} You can still Set it face-down for later.`;
       }
-      if (c.type === "trap") return `Traps must be Set first. Once Set, ${c.name} can activate from your opponent's next turn, when its condition happens.`;
+      if (c.type === "trap") return c.subtype === "counter"
+        ? `${c.name} is a Counter Trap: Set it, and from your opponent's next turn it can negate a Spell they activate.`
+        : `Traps must be Set first. Once Set, ${c.name} can activate from your opponent's next turn, when its condition happens.`;
     }
     if (c && fieldMon) {
       if (phase === "battle") {
@@ -78,6 +87,7 @@ export function guideMessage(view, actions, decider, sel, choose) {
             : `Choose a target for ${c.name}. Highlighted monsters can be attacked.`;
         if (fieldMon.attacked) return `${c.name} has already attacked this turn.`;
         if (fieldMon.position === "def") return "Monsters in Defense Position can't attack.";
+        if (forCard.some((a) => a.kind === "activate_spell")) return "Use a Quick-Play Spell on this monster before attacking.";
         return "An effect is preventing your monsters from attacking.";
       }
       if (forCard.some((a) => a.kind === "flip_summon")) return "You can Flip Summon this face-down monster into Attack Position.";
@@ -128,7 +138,10 @@ function spellReason(c, view) {
     if (view.players[me].monsters.every(Boolean)) return "Your monster zones are full.";
     return "There are no monsters in either Graveyard to bring back.";
   }
-  if (ops.includes("fusion_summon")) return "You don't have the right Fusion Materials in your hand or on your field.";
+  if (ops.includes("fusion_summon")) return "Fusion Summons need a Level 7+ Fusion Monster in your Extra Deck and both of its exact materials in your hand or on your field.";
+  if (ops.includes("equip") || ops.includes("boost")) return "You need a face-up monster on your field to target.";
+  if (ops.includes("destroy_target_st")) return "Your opponent has no Spell or Trap cards to destroy.";
+  if (ops.includes("search_deck")) return "There are no matching monsters left in your Deck.";
   if (view.players[me].st.every(Boolean)) return "Your Spell & Trap zones are full.";
   return "Its activation conditions aren't met right now.";
 }

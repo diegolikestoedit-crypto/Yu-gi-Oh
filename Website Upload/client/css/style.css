@@ -422,3 +422,39 @@ kbd { font-family: var(--pixel); font-size: 12px; padding: 2px 7px; border-radiu
 .deck-tile .dt-stats { gap: 4px; }
 .deck-tile .dt-stats span { font-size: 10px; padding: 1px 5px; }
 .deck-tile .dt-view { opacity: 0; transition: opacity .12s; } .deck-tile:hover .dt-view { opacity: 1; }
+
+/* ---- v6: solo duels against the computer ---- */
+#screen-online .solo-only { display: none; }
+#screen-online.solo .solo-only { display: revert; }
+#screen-online.solo .seg.solo-only, #screen-online.solo .seg.big.solo-only { display: flex; }
+#screen-online.solo #seg-pick { display: inline-flex; }
+#screen-online.solo .online-only { display: none; }
+#screen-online.solo .entry-cols { grid-template-columns: 1fr; max-width: 520px; margin: 0 auto; }
+.rc-group { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.seat .s-av.bot { font-size: 30px; }
+.seat .s-bot { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 99px; font-size: 11px; letter-spacing: .08em; vertical-align: middle;
+  background: rgba(255, 207, 106, .16); color: var(--gold); font-weight: 800; }
+.deck-tile.opp-pick { border-color: #ff8fae; box-shadow: 0 0 0 2px rgba(255, 120, 160, .55), 0 0 26px rgba(255, 90, 140, .25); }
+.deck-tile .dt-vs { position: absolute; top: 6px; left: 8px; z-index: 2; font-size: 10px; font-weight: 800; letter-spacing: .08em; padding: 2px 7px; border-radius: 99px;
+  background: #c22a5a; color: #fff; }
+#screen-online.solo .rc-group.solo-only { display: flex; }
+#screen-online.solo .entry-card > .field { max-width: 520px; margin-left: auto; margin-right: auto; }
+
+/* ---- v7: suggested plays in the guide ---- */
+.guide-body .g-text { line-height: 1.45; }
+.g-hint { margin-top: 10px; padding: 9px 11px 10px; border-radius: 10px; background: linear-gradient(180deg, rgba(122, 232, 255, .14), rgba(122, 232, 255, .05));
+  border: 1px solid rgba(122, 232, 255, .35); }
+.g-hint-title { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #7ae8ff; }
+.g-hint-label { font-weight: 800; margin-top: 3px; color: var(--ink); }
+.g-hint-why { margin-top: 3px; font-size: 13px; color: var(--ink-dim); line-height: 1.4; }
+.g-show { margin-top: 7px; border: 1px solid rgba(122, 232, 255, .5); background: rgba(122, 232, 255, .12); color: #bff4ff; border-radius: 8px;
+  padding: 4px 10px; font-weight: 800; font-size: 12px; cursor: pointer; }
+.g-show:hover { background: rgba(122, 232, 255, .25); }
+.guide.min .g-hint { display: none; }
+.hand-card.suggested img { box-shadow: 0 0 0 2px #7ae8ff, 0 0 22px rgba(122, 232, 255, .65); }
+.hand-card.suggested::after { content: "★"; position: absolute; top: -10px; right: -6px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: #7ae8ff; color: #062030; font-size: 13px; font-weight: 900; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+#medallion.hint-pulse { animation: hintPulse 1.2s ease-out 2; }
+@keyframes hintPulse { 0% { box-shadow: 0 0 0 0 rgba(122, 232, 255, .9); } 100% { box-shadow: 0 0 0 26px rgba(122, 232, 255, 0); } }
+/* The guide sits in the bottom-right corner and grows upward, clear of the turn medallion. */
+.guide { bottom: 14px; width: 286px; max-height: 330px; overflow: auto; }

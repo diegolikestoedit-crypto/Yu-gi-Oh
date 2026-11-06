@@ -121,6 +121,14 @@ class Audio {
         this.noise(1.1, { type: "lowpass", f: 3000, gain: 0.4, glide: 120, at });
         [880, 660, 440].forEach((f, i) => this.tone(f, 0.4, { type: "triangle", gain: 0.06, at: at + 0.1 + i * 0.08 }));
         break;
+      case "crack": this.noise(0.12, { type: "highpass", f: 3200, gain: 0.5, at }); this.tone(2400, 0.06, { type: "square", gain: 0.05, glide: 900, at }); break;
+      case "shatter":
+        this.noise(0.55, { type: "highpass", f: 2600, gain: 0.5, glide: 5200, at });
+        [3136, 2637, 3520, 2349, 2794].forEach((f, i) => this.tone(f, 0.25, { gain: 0.05, at: at + 0.04 + i * 0.035 }));
+        this.tone(90, 0.4, { gain: 0.35, glide: 40, at });
+        break;
+      case "negate": this.tone(880, 0.5, { type: "sawtooth", gain: 0.08, filter: 1800, glide: 110, at }); this.noise(0.4, { f: 400, q: 3, gain: 0.2, at }); break;
+      case "power_up": [392, 523, 659, 880].forEach((f, i) => this.tone(f, 0.3, { type: "square", gain: 0.05, filter: 2400, at: at + i * 0.05 })); break;
       case "lightning": this.noise(0.5, { type: "highpass", f: 1500, gain: 0.55, at }); this.tone(60, 0.7, { gain: 0.4, glide: 30, at: at + 0.03 }); break;
       case "barrier": [523, 784, 1047].forEach((f, i) => this.tone(f, 0.9, { gain: 0.1, attack: 0.05, at: at + i * 0.03 })); this.noise(0.4, { f: 6000, q: 4, gain: 0.08, at }); break;
       case "rift": this.tone(60, 2.4, { type: "sawtooth", gain: 0.2, filter: 300, glide: 30, attack: 0.6, at }); this.noise(2.2, { f: 200, q: 2, gain: 0.3, glide: 60, attack: 0.8, at }); break;

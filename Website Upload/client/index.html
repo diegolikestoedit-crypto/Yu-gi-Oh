@@ -20,11 +20,12 @@
           <div class="title-sub">Summon. Clash. Transform the field.</div>
         </div>
         <nav class="menu-list">
-          <button class="menu-btn primary" data-go="online"><span class="mb-icon">⚔</span><span class="mb-text"><b>Online Duel</b><small>Create or join a private room</small></span><kbd>1</kbd></button>
-          <button class="menu-btn" data-go="collection"><span class="mb-icon">❖</span><span class="mb-text"><b>Collection</b><small>Browse every card and monster</small></span><kbd>2</kbd></button>
+          <button class="menu-btn primary" data-go="solo"><span class="mb-icon">♜</span><span class="mb-text"><b>Solo Duel</b><small>Play against the computer</small></span><kbd>1</kbd></button>
+          <button class="menu-btn primary" data-go="online"><span class="mb-icon">⚔</span><span class="mb-text"><b>Online Duel</b><small>Create or join a private room with a friend</small></span><kbd>2</kbd></button>
+          <button class="menu-btn" data-go="collection"><span class="mb-icon">❖</span><span class="mb-text"><b>Collection</b><small>Browse every card and monster</small></span><kbd>3</kbd></button>
           <button class="menu-btn locked" disabled><span class="mb-icon">✎</span><span class="mb-text"><b>Deck Builder</b><small>Coming soon</small></span></button>
           <button class="menu-btn locked" disabled><span class="mb-icon">★</span><span class="mb-text"><b>Progression</b><small>Coming soon</small></span></button>
-          <button class="menu-btn" data-go="settings"><span class="mb-icon">⚙</span><span class="mb-text"><b>Settings</b><small>Guide, speed, visuals, audio</small></span><kbd>3</kbd></button>
+          <button class="menu-btn" data-go="settings"><span class="mb-icon">⚙</span><span class="mb-text"><b>Settings</b><small>Guide, speed, visuals, audio</small></span><kbd>4</kbd></button>
         </nav>
       </div>
       <div class="menu-right">
@@ -33,7 +34,7 @@
           <div class="showcase-plate"><div class="sp-name" id="sp-name"></div><div class="sp-meta" id="sp-meta"></div></div>
         </div>
       </div>
-      <div class="menu-foot">Original characters, cards and music · Two-player online duels</div>
+      <div class="menu-foot">Original characters, cards and music · Solo duels and two-player online duels</div>
     </section>
 
     <!-- ONLINE LOBBY -->
@@ -41,7 +42,7 @@
       <div class="lobby-wrap">
         <header class="lobby-head">
           <button class="back-btn" data-go="menu">‹ Menu</button>
-          <h2>Online Duel</h2>
+          <h2 id="lobby-title">Online Duel</h2>
           <div class="conn" id="conn-status"><span class="dot"></span><span class="txt">Connecting…</span></div>
         </header>
 
@@ -50,16 +51,21 @@
             <label class="field">Duelist name <input id="in-name" maxlength="16" autocomplete="off" placeholder="Your name"></label>
             <div class="entry-cols">
               <div class="entry-col">
-                <h3>Create a private room</h3>
+                <h3 class="online-only">Create a private room</h3>
+                <h3 class="solo-only">Duel the computer</h3>
                 <div class="field">Rules
                   <div class="seg big" id="seg-profile"></div>
                 </div>
                 <p class="hint" id="profile-summary"></p>
                 <label class="toggle"><input type="checkbox" id="in-showcase" checked><span class="tg"></span><span>Showcase opening: each deck's signature monster starts in hand</span></label>
-                <button class="btn primary wide" id="btn-create">Create Room</button>
+                <div class="field solo-only">Computer difficulty
+                  <div class="seg big seg-difficulty" id="seg-difficulty-entry"></div>
+                </div>
+                <button class="btn primary wide online-only" id="btn-create">Create Room</button>
+                <button class="btn primary wide solo-only" id="btn-solo">Continue</button>
               </div>
-              <div class="entry-divider"><span>or</span></div>
-              <div class="entry-col">
+              <div class="entry-divider online-only"><span>or</span></div>
+              <div class="entry-col online-only">
                 <h3>Join a friend</h3>
                 <label class="field">Room code <input id="in-code" maxlength="5" autocomplete="off" placeholder="ABCDE" class="code-input"></label>
                 <button class="btn wide" id="btn-join">Join Room</button>
@@ -71,9 +77,15 @@
         <div id="lobby-room" class="room hidden">
           <div class="room-top">
             <div class="panel room-code-card">
-              <div class="rc-label">Room code</div>
-              <div class="room-code" id="room-code"></div>
-              <button class="btn small" id="btn-copy">Copy invite link</button>
+              <div class="online-only rc-group">
+                <div class="rc-label">Room code</div>
+                <div class="room-code" id="room-code"></div>
+                <button class="btn small" id="btn-copy">Copy invite link</button>
+              </div>
+              <div class="solo-only rc-group">
+                <div class="rc-label">Computer difficulty</div>
+                <div class="seg seg-difficulty" id="seg-difficulty-room"></div>
+              </div>
               <div class="room-rules" id="room-rules"></div>
             </div>
             <div class="seats" id="seats"></div>
@@ -83,7 +95,9 @@
             <div class="arena-gallery" id="arena-gallery"></div>
           </div>
           <div class="panel deck-panel">
-            <div class="deck-head"><h3><span class="step">2</span> Choose your deck</h3><span class="hint" id="deck-hint">Pick a preset deck before you ready up.</span></div>
+            <div class="deck-head"><h3><span class="step">2</span> <span id="deck-step-title">Choose your deck</span></h3>
+              <div class="seg solo-only" id="seg-pick"><button data-v="me" class="on">Your duelist</button><button data-v="bot">Opponent</button></div>
+              <span class="hint" id="deck-hint">Pick a preset deck before you ready up.</span></div>
             <div class="deck-gallery" id="deck-gallery"></div>
           </div>
           <div class="room-actions">
@@ -147,6 +161,8 @@
         <div class="set-page" data-page="play">
           <div class="setting-row"><span>In-game guide<small>Short, contextual hints in the corner</small></span>
             <div class="seg" data-setting="guide"><button data-v="true">On</button><button data-v="false">Off</button></div></div>
+          <div class="setting-row"><span>Suggested plays<small>The guide recommends a move and explains why. You always make the final decision.</small></span>
+            <div class="seg" data-setting="guideHints"><button data-v="true">On</button><button data-v="false">Off</button></div></div>
           <div class="setting-row"><span>Animation speed<small>Click or Space speeds up any sequence</small></span>
             <div class="seg" data-setting="animSpeed"><button data-v="1">Normal</button><button data-v="1.6">Fast</button><button data-v="2.5">Very fast</button></div></div>
           <div class="setting-row"><span>Skip responses I can't make<small>Auto-pass after a short random delay, so nothing is revealed</small></span>

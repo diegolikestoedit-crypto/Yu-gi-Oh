@@ -19,7 +19,7 @@ const EASE = {
   inOut: (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
   back: (p) => { const c = 1.7; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); },
 };
-const HL = { target: "#ff5a6a", selected: "#ffe58a", actionable: "#6dffa8", zone: "#6dd8ff" };
+const HL = { target: "#ff5a6a", selected: "#ffe58a", actionable: "#6dffa8", zone: "#6dd8ff", hint: "#7ae8ff" };
 
 export class Stage {
   constructor(canvas) {

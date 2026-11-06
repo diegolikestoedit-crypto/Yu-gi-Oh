@@ -4,6 +4,7 @@ const DEFAULTS = {
   name: "",
   guide: true,
   guideMin: false,
+  guideHints: true,
   animSpeed: 1,
   quality: "high",
   // Respect the system's reduced-motion preference for the default camera.
@@ -13,7 +14,7 @@ const DEFAULTS = {
   confirmEnd: true,
   logOpen: false,
   lastDeck: "",
-  lastProfile: "frontier",
+  lastProfile: "citadel",
   music: 0.45,
   sfx: 0.8,
   monster: 0.8,

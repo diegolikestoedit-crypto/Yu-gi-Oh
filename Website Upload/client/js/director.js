@@ -2,9 +2,10 @@
 // event's state snapshot, so whatever the animation shows, the field always lands on the server's truth.
 import { card as cardData } from "./carddb.js";
 import { audio } from "./audio.js";
-import { cardCanvas } from "./render/cardart.js";
+import { cardCanvas, cardBack, CARD_W, CARD_H } from "./render/cardart.js";
 import {
   MagicCircle, Pillar, Portal, Beam, Bolt, Projectile, Ring, Slash, Dome, Cylinder, Sinkhole, Vortex, TextPop, CardFlash,
+  Shatter, Cracks,
 } from "./render/fx.js";
 import { W } from "./render/stage.js";
 import { proj, Z } from "./render/board.js";
@@ -49,7 +50,7 @@ export class Director {
       }
       this.safeApply(msg.view);
       this.stage.highlights.clear();
-      try { this.ui.update(msg.view, msg.actions, msg.decider); } catch (err) { console.error(err); }
+      try { this.ui.update(msg.view, msg.actions, msg.decider, msg.hint); } catch (err) { console.error(err); }
     }
     this.stage.boost = 1;
     this.stage.dim.a = 0;
@@ -530,6 +531,7 @@ export class Director {
 
   // ---------------------------------------------------------------- battle
   async ATTACK_DECLARED(ev) {
+    this.lastAttacker = ev.attacker;
     this.apply(ev.view);
     const a = this.stage.actor(ev.attacker);
     this.engage(ev.attacker, ev.target);
@@ -743,10 +745,13 @@ export class Director {
     await this.wait(0.7);
   }
 
+  // Battle and effect destruction: hit-stop, fractures, then the sprite itself breaks into pieces that
+  // scatter, bounce on the board and fade, while its spirit drifts to the Graveyard.
   async MONSTER_DESTROYED(ev) {
     const a = this.stage.actor(ev.iid);
     const rift = this.spellFx && this.spellFx.fx === "void_rift" && ev.by === this.spellFx.src;
-    if (a) {
+    const side = this.side(ev.player);
+    if (a && !a.hidden) {
       a.keep = true; a.engaged = true; a.visibility = 1;
       const c = a.center();
       if (rift) {
@@ -754,23 +759,146 @@ export class Director {
         this.stage.tween(a, { grow: 0.3, alpha: 0.2 }, 0.7, "in");
         const bc = this.stage.boardCenter();
         await this.stage.tween(a.offset, { x: bc.x - a.home.x, y: bc.y - a.home.y + 20 }, 0.7, "in");
+        a.keep = false; a.hidden = true;
       } else {
+        const battle = ev.reason === "battle";
+        const hitFrom = battle && this.lastAttacker && this.stage.actor(this.lastAttacker);
+        const origin = hitFrom ? { x: c.x + (hitFrom.center().x < c.x ? -30 : 30), y: c.y } : { x: c.x, y: c.y - 10 };
+        const tint = battle ? "#ffffff" : "#c9a0ff";
+        // 1. hit-stop and fractures
+        a.flash = 1;
+        audio.play("crack");
+        const snap0 = a.snapshot();
+        this.stage.add(new Cracks({ ...snap0, origin, color: battle ? "#fff6d0" : "#e0c8ff", life: 0.5, count: 8 }));
+        this.stage.shake(6);
+        await this.wait(0.32);
+        // 2. it breaks
+        const snap = a.snapshot();
+        a.keep = false; a.hidden = true;
+        this.apply(ev.view);
+        audio.play("shatter");
         audio.play("destroy");
-        a.flash = 0.8;
-        this.burst(c.x, c.y, 50, { color: [a.pal.body, a.pal.accent, a.pal.glow, "#ffffff"], kind: "shard", speed: [60, 300], grav: 200, life: [0.6, 1.3], size: [3, 7], additive: false });
-        this.burst(c.x, c.y, 30, { color: [a.pal.glow, "#ffffff"], speed: [40, 200], life: [0.5, 1.0] });
-        this.stage.tween(a, { lift: 30 }, 0.9);
-        await this.stage.tween(a, { dissolve: 1 }, 0.9, "in");
+        this.stage.flash(battle ? "#ffffff" : "#b89aff", 0.25, 0.18);
+        this.stage.shake(12);
+        this.stage.add(new Shatter({ ...snap, origin, life: 1.6, cols: 6, rows: 7, power: battle ? 1.05 : 0.8, tint,
+          floor: a.home.y + 6, particles: this.stage.particles, dust: a.pal.shade }));
+        this.stage.add(new Ring({ x: a.home.x, y: a.home.y, r0: 20, r1: 160 * a.home.s, color: a.pal.glow, life: 0.6, squash: 0.35, width: 6 }));
+        this.burst(origin.x, origin.y, 46, { color: [a.pal.glow, a.pal.accent, "#ffffff"], kind: "spark", speed: [180, 560], life: [0.2, 0.6] });
+        this.burst(a.home.x, a.home.y - 10, 22, { color: [a.pal.shade, "#3a3430", "#6a625a"], kind: "smoke", speed: [30, 120], squash: 0.4, life: [0.7, 1.4], size: [10, 22], grow: 14, additive: false });
+        this.burst(c.x, c.y, 30, { color: [a.pal.body, a.pal.accent], kind: "shard", speed: [80, 360], grav: 700, life: [0.6, 1.2], size: [2, 5], additive: false });
+        if (battle) this.stage.addImpact(a.home.x, a.home.y, "scorch", 0.9 * a.home.s + 0.3);
+        // 3. its spirit returns to the Graveyard
+        const gy = this.stage.pilePos(side, "gy");
+        this.stage.add(new Projectile({ from: { x: c.x, y: c.y - 20 }, to: { x: gy.x, y: gy.y }, life: 0.75, arc: 80, color: a.pal.glow, size: 9, particles: this.stage.particles, trailRate: 0.7 }));
+        await this.wait(0.55);
       }
-      a.keep = false;
-      a.hidden = true;
     } else {
-      const s = this.stage.slotPos(this.side(ev.player), ev.slot);
-      audio.play("destroy");
-      this.burst(s.x, s.y - 30, 30, { color: ["#cfd8ff", "#ffffff"], kind: "shard", speed: [60, 260], grav: 300, additive: false });
+      // A face-down monster with no living figure: its card breaks instead.
+      await this.breakCard(ev.cid, this.stage.zonePos(side, ev.slot), side, ev.reason === "battle" ? "#ffffff" : "#c9a0ff", ev.player, ev.view);
     }
     this.apply(ev.view);
-    await this.wait(0.15);
+    await this.wait(0.1);
+  }
+
+  // Shatter a card lying on the field (Spell/Trap Zone or a monster zone without a figure).
+  async breakCard(cid, z, side, tint = "#ffffff", player, view) {
+    const img = cid ? cardCanvas(cid) : cardBack();
+    const s = z.s || 1;
+    const w = CARD_W * 0.34 * s, h = CARD_H * 0.34 * s;
+    const x = z.x - w / 2, y = z.y - h / 2 - 12 * s;
+    audio.play("crack");
+    this.stage.add(new Cracks({ x, y, w, h, origin: { x: z.x, y: z.y - 12 * s }, color: tint, life: 0.4, count: 6 }));
+    await this.wait(0.26);
+    if (view) this.apply(view);
+    audio.play("shatter");
+    this.stage.shake(7);
+    this.stage.add(new Shatter({ img, x, y, w, h, origin: { x: z.x, y: z.y }, life: 1.3, cols: 4, rows: 5, power: 0.7, tint, edge: tint,
+      floor: z.y + h * 0.4, particles: this.stage.particles, dust: "#7a7468" }));
+    this.burst(z.x, z.y, 26, { color: [tint, "#ffffff"], kind: "spark", speed: [120, 380], life: [0.2, 0.5] });
+    if (player !== undefined) {
+      const gy = this.stage.pilePos(side, "gy");
+      this.stage.add(new Projectile({ from: { x: z.x, y: z.y }, to: { x: gy.x, y: gy.y }, life: 0.6, arc: 50, color: tint, size: 6, particles: this.stage.particles, trailRate: 0.5 }));
+    }
+    await this.wait(0.4);
+  }
+
+  async CARD_DESTROYED(ev) {
+    const side = this.side(ev.player);
+    const z = this.stage.stPos(side, ev.slot);
+    const name = ev.cid ? cardData(ev.cid).name : "Set card";
+    this.popText(z.x, z.y - 60, ev.reason === "equip_lost" ? "Equip lost" : "Destroyed", "#ffb0c0", 22, 1.1);
+    await this.breakCard(ev.cid, z, side, ev.reason === "equip_lost" ? "#ffd27a" : "#ff8ab0", ev.player, ev.view);
+    if (ev.reason !== "equip_lost") this.ui.banner(name, "Destroyed", "#ff8ab0", true);
+    this.apply(ev.view);
+    await this.wait(0.2);
+  }
+
+  async SPELL_NEGATED(ev) {
+    const side = this.side(ev.player);
+    const z = this.stage.stPos(side, ev.slot);
+    audio.play("negate");
+    this.stage.flash("#ff3ad0", 0.3, 0.3);
+    this.stage.add(new MagicCircle({ x: z.x, y: z.y, r: 90, color: "#ff6ad8", color2: "#ffffff", life: 0.9, points: 8, squash: 0.45 }));
+    this.ui.banner(cardData(ev.cid).name, "Negated!", "#ff6ad8", true);
+    if (this.riftFx) { this.riftFx.life = Math.min(this.riftFx.life, this.riftFx.age + 0.3); this.riftFx = null; }
+    this.stage.setDim(0, 0.3);
+    this.spellFx = null;
+    await this.wait(0.4);
+    await this.breakCard(ev.cid, z, side, "#ff6ad8", ev.player, ev.view);
+    this.apply(ev.view);
+  }
+
+  async EQUIP_ATTACHED(ev) {
+    const t = this.pointOf(ev.target);
+    const from = this.stage.stPos(this.side(ev.player), ev.slot);
+    const c = cardData(ev.cid);
+    const col = c.visual.palette.b;
+    audio.play("power_up");
+    this.stage.add(new Projectile({ from: { x: from.x, y: from.y }, to: t, life: 0.5, arc: 60, color: col, size: 10, particles: this.stage.particles }));
+    await this.wait(0.45);
+    this.stage.add(new Ring({ x: t.x, y: t.y + 40, r0: 10, r1: 90, color: col, life: 0.6, squash: 0.35, width: 5 }));
+    this.burst(t.x, t.y, 30, { color: [col, "#ffffff"], speed: [60, 220], life: [0.4, 0.9] });
+    const a = this.stage.actor(ev.target);
+    if (a) a.flash = 0.6;
+    this.popText(t.x, t.y - 70, `+${ev.atk} ATK${ev.defense ? ` / +${ev.defense} DEF` : ""}`, "#ffe58a", 26, 1.3);
+    this.apply(ev.view);
+    await this.wait(0.6);
+  }
+
+  async MONSTER_BOOSTED(ev) {
+    const t = this.pointOf(ev.iid);
+    audio.play("power_up");
+    const a = this.stage.actor(ev.iid);
+    if (a) { a.flash = 0.8; this.stage.add(new Pillar({ x: a.home.x, y: a.home.y, w: 50, h: 220, color: "#ffe86a", life: 0.7 })); }
+    this.burst(t.x, t.y, 36, { color: ["#ffe86a", "#ffffff"], kind: "spark", speed: [100, 300], life: [0.3, 0.7] });
+    this.popText(t.x, t.y - 70, `+${ev.amount} ATK`, "#ffe86a", 30, 1.3);
+    this.apply(ev.view);
+    await this.wait(0.7);
+  }
+
+  async MONSTER_EFFECT(ev) {
+    const c = cardData(ev.cid);
+    const a = this.stage.actor(ev.iid);
+    const p = a && !a.hidden ? a.center() : this.stage.cardPos(ev.iid, this.stage.view);
+    const col = (c.visual && c.visual.palette && c.visual.palette.glow) || "#ffd27a";
+    audio.play("activate_spell");
+    if (a && !a.hidden) a.flash = 0.7;
+    this.stage.add(new MagicCircle({ x: p.x, y: p.y + 40, r: 80, color: col, color2: "#ffffff", life: 1.0, points: 6, squash: 0.4 }));
+    this.burst(p.x, p.y, 26, { color: [col, "#ffffff"], speed: [40, 180], life: [0.4, 0.9] });
+    const label = ev.trigger === "flip" ? "FLIP effect" : ev.trigger === "destroyed_by_battle" ? "Last effect" : "Monster effect";
+    this.ui.banner(c.name, label, "#ffb36b", true);
+    await this.wait(0.8);
+    this.apply(ev.view);
+  }
+
+  async CARD_ADDED_TO_HAND(ev) {
+    const side = this.side(ev.player);
+    const deck = this.stage.pilePos(side, "deck");
+    audio.play("card_draw");
+    this.stage.add(new CardFlash({ img: cardCanvas(ev.cid), x: deck.x, y: deck.y - 80, w: 120, life: 1.1, rise: 40, glow: "#7ae8ff" }));
+    this.ui.banner(cardData(ev.cid).name, "Added from the Deck", "#7ae8ff", true);
+    await this.wait(0.9);
+    this.apply(ev.view);
   }
 
   async DUEL_WON(ev) {

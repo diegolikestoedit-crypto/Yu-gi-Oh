@@ -20,12 +20,19 @@ export const ATTR_COLORS = {
   EARTH: ["#e6cf9a", "#6b4f2a"],
 };
 
+const SUBTYPE = { quickplay: "Quick-Play", equip: "Equip", continuous: "Continuous", field: "Field", counter: "Counter" };
+
+// "Fusion / Effect", "Effect" or "Normal": the bracketed kind printed on monster cards.
+export function monsterKind(c) {
+  if (c.subtype === "fusion") return c.effect || c.piercing ? "Fusion / Effect" : "Fusion";
+  return c.subtype === "effect" ? "Effect" : "Normal";
+}
+
+export function subtypeName(c) { return SUBTYPE[c.subtype] || ""; }
+
 export function typeLine(c) {
   if (!c) return "";
-  if (c.type === "monster") {
-    const kind = c.subtype === "fusion" ? "Fusion" : "Normal";
-    return `${c.attribute} · Level ${c.level} · ${c.race} / ${kind}`;
-  }
-  const sub = c.subtype === "normal" ? "" : c.subtype[0].toUpperCase() + c.subtype.slice(1) + " ";
-  return `${sub}${c.type === "spell" ? "Spell" : "Trap"}`;
+  if (c.type === "monster") return `${c.attribute} · Level ${c.level} · ${c.race} / ${monsterKind(c)}`;
+  const sub = subtypeName(c);
+  return `${sub ? sub + " " : ""}${c.type === "spell" ? "Spell" : "Trap"}`;
 }

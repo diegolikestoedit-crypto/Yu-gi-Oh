@@ -1,6 +1,6 @@
 // Original card face and card back rendering. Monster art is a portrait of the same rig used on the field,
 // so a card and its living monster always match. Results are cached per card id.
-import { card as cardData, ATTR_COLORS } from "../carddb.js";
+import { card as cardData, ATTR_COLORS, monsterKind, subtypeName } from "../carddb.js";
 import { RIGS, basePose, shade, rgba } from "./rigs.js";
 import { SpriteRenderer, ramp } from "./pixel.js";
 
@@ -11,13 +11,14 @@ let backCanvas = null;
 
 const FRAMES = {
   monster: ["#d6a04c", "#7a4a18"],
+  effect: ["#d8743a", "#6e2a0e"],
   fusion: ["#a46be0", "#3e1d6b"],
   spell: ["#2bb59d", "#0d4f47"],
   trap: ["#cf3a72", "#5a0f2e"],
 };
 
 function frameFor(c) {
-  if (c.type === "monster") return c.subtype === "fusion" ? FRAMES.fusion : FRAMES.monster;
+  if (c.type === "monster") return FRAMES[c.subtype] || FRAMES.monster;
   return FRAMES[c.type];
 }
 
@@ -173,6 +174,43 @@ function drawEmblem(ctx, c, x, y, w, h) {
       ctx.fillStyle = "#050302"; ctx.beginPath(); ctx.ellipse(0, R * 0.3, R, R * 0.38, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = pa.b; for (let i = 0; i < 7; i++) { const a = i * 0.9; ctx.beginPath(); ctx.moveTo(Math.cos(a) * R, R * 0.3 + Math.sin(a) * R * 0.38); ctx.lineTo(Math.cos(a) * R * 1.4, R * 0.3 + Math.sin(a) * R * 0.55); ctx.stroke(); }
       break;
+    case "equip_blade": // upright sword
+      ctx.fillStyle = "#fff3c8";
+      ctx.beginPath(); ctx.moveTo(0, -R * 1.15); ctx.lineTo(R * 0.14, -R * 0.9); ctx.lineTo(R * 0.12, R * 0.45); ctx.lineTo(-R * 0.12, R * 0.45); ctx.lineTo(-R * 0.14, -R * 0.9); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = pa.b; ctx.fillRect(-R * 0.55, R * 0.42, R * 1.1, 9); ctx.fillRect(-6, R * 0.5, 12, R * 0.45);
+      ctx.beginPath(); ctx.arc(0, R * 1.02, 9, 0, Math.PI * 2); ctx.fill();
+      break;
+    case "equip_shield":
+      ctx.beginPath(); ctx.moveTo(0, -R); ctx.lineTo(R * 0.85, -R * 0.65); ctx.quadraticCurveTo(R * 0.8, R * 0.6, 0, R * 1.05); ctx.quadraticCurveTo(-R * 0.8, R * 0.6, -R * 0.85, -R * 0.65); ctx.closePath();
+      ctx.globalAlpha = 0.35; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -R * 0.6); ctx.lineTo(0, R * 0.6); ctx.moveTo(-R * 0.45, -R * 0.15); ctx.lineTo(R * 0.45, -R * 0.15); ctx.stroke();
+      break;
+    case "surge": // rising chevrons
+      ctx.fillStyle = "#fff6b0";
+      for (let i = 0; i < 3; i++) { const y = R * 0.7 - i * R * 0.62; ctx.beginPath(); ctx.moveTo(-R * 0.8, y + R * 0.3); ctx.lineTo(0, y - R * 0.25); ctx.lineTo(R * 0.8, y + R * 0.3); ctx.lineTo(R * 0.8, y + R * 0.05); ctx.lineTo(0, y - R * 0.5); ctx.lineTo(-R * 0.8, y + R * 0.05); ctx.closePath(); ctx.globalAlpha = 0.5 + i * 0.25; ctx.fill(); }
+      ctx.globalAlpha = 1;
+      break;
+    case "tempest":
+    case "squall": // spiral gale
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); for (let a = 0; a < 7; a += 0.12) { const r = a * R * 0.15; const px = Math.cos(a + k * 2.1) * r, py = Math.sin(a + k * 2.1) * r * 0.7; a ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke(); }
+      if (v.fx === "squall") { ctx.fillStyle = "#fff"; for (let i = 0; i < 6; i++) ctx.fillRect(-R + i * R * 0.4, -R * 0.9 + (i % 2) * 14, 5, 5); }
+      break;
+    case "lantern":
+      ctx.beginPath(); ctx.arc(0, -R * 0.95, R * 0.18, Math.PI, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-R * 0.4, -R * 0.7); ctx.lineTo(R * 0.4, -R * 0.7); ctx.lineTo(R * 0.5, R * 0.6); ctx.lineTo(-R * 0.5, R * 0.6); ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = "#fff3a0"; ctx.beginPath(); ctx.ellipse(0, 0, R * 0.2, R * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.fillRect(Math.cos(a) * R * 0.95 - 2, Math.sin(a) * R * 0.95 - 2, 4, 4); }
+      break;
+    case "null_seal": // crossed-out circle of runes
+      ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.72, 0, Math.PI * 2); ctx.globalAlpha = 0.5; ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(-R * 0.7, -R * 0.7); ctx.lineTo(R * 0.7, R * 0.7); ctx.stroke();
+      for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5; ctx.fillRect(Math.cos(a) * R * 0.86 - 3, Math.sin(a) * R * 0.86 - 3, 6, 6); }
+      break;
+    case "gravity": // pressing rings
+      for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(0, R * 0.6 - i * 4, R * (1 - i * 0.2), R * 0.28 * (1 - i * 0.2), 0, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.fillStyle = pa.b; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(i * R * 0.5, -R); ctx.lineTo(i * R * 0.5 + 10, -R * 0.55); ctx.lineTo(i * R * 0.5 - 10, -R * 0.55); ctx.fill(); ctx.fillRect(i * R * 0.5 - 3, -R * 1.2, 6, R * 0.65); }
+      break;
     default:
       ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
   }
@@ -226,7 +264,7 @@ function render(c) {
     }
   } else {
     ctx.fillStyle = "#fff"; ctx.textAlign = "right";
-    const sub = c.subtype !== "normal" ? ` · ${c.subtype.toUpperCase()}` : "";
+    const sub = subtypeName(c) ? ` · ${subtypeName(c).toUpperCase()}` : "";
     ctx.fillText(`${c.type.toUpperCase()} CARD${sub}`, CARD_W - 18, 58);
     ctx.textAlign = "left";
   }
@@ -237,6 +275,16 @@ function render(c) {
   if (c.type === "monster") drawMonsterArt(ctx, c, ax, ay, aw, ah);
   else drawEmblem(ctx, c, ax, ay, aw, ah);
   ctx.strokeStyle = "rgba(255,235,190,.7)"; ctx.lineWidth = 1.5; ctx.strokeRect(ax - 1, ay - 1, aw + 2, ah + 2);
+  if (c.subtype === "fusion") {
+    // Fusion Monsters are always Level 7+: marked on the art so it reads at a glance.
+    ctx.save();
+    roundRect(ctx, ax + 6, ay + ah - 24, 92, 18, 9);
+    ctx.fillStyle = "rgba(40,14,70,.88)"; ctx.fill();
+    ctx.strokeStyle = "#d9b8ff"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = "#f1e2ff"; ctx.font = "900 10px 'Nunito Sans', system-ui, sans-serif"; ctx.textBaseline = "middle";
+    ctx.fillText(`FUSION · LV ${c.level}`, ax + 14, ay + ah - 15);
+    ctx.restore();
+  }
   if (c.rarity === "ultra") {
     const foil = ctx.createLinearGradient(ax, ay, ax + aw, ay + ah);
     foil.addColorStop(0, "rgba(255,255,255,0)"); foil.addColorStop(0.45, "rgba(255,255,255,.18)"); foil.addColorStop(0.55, "rgba(180,220,255,.14)"); foil.addColorStop(1, "rgba(255,255,255,0)");
@@ -252,11 +300,11 @@ function render(c) {
   let ly = ty + 15;
   if (c.type === "monster") {
     ctx.font = "800 10.5px 'Nunito Sans', system-ui, sans-serif";
-    ctx.fillText(`[${c.race} / ${c.subtype === "fusion" ? "Fusion" : "Normal"}]`, tx + 7, ly);
+    ctx.fillText(`[${c.race} / ${monsterKind(c)}]`, tx + 7, ly);
     ly += 13;
   }
   ctx.font = "italic 400 10px 'Nunito Sans', system-ui, sans-serif";
-  if (c.type !== "monster") ctx.font = "600 10.5px 'Nunito Sans', system-ui, sans-serif";
+  if (c.type !== "monster" || c.subtype !== "normal") ctx.font = "600 10.5px 'Nunito Sans', system-ui, sans-serif";
   wrap(ctx, c.text, tx + 7, ly, tw - 14, 12, c.type === "monster" ? 4 : 6);
   if (c.type === "monster") {
     ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(tx + 6, ty + th - 20, tw - 12, 1);

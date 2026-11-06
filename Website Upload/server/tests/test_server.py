@@ -142,8 +142,8 @@ class ServerSlice(unittest.TestCase):
             tb = [e["type"] for e in ub["events"]]
             self.assertEqual(ta, tb, "both clients receive the same event sequence")
             self.assertIn("MONSTER_DESTROYED", ta)
-            self.assertEqual(ua["view"]["players"][1]["lp"], 2500)
-            self.assertEqual(ub["view"]["players"][1]["lp"], 2500)
+            self.assertEqual(ua["view"]["players"][1]["lp"], 3500)
+            self.assertEqual(ub["view"]["players"][1]["lp"], 3500)
             self.assertEqual(ua["view"]["players"][1]["monsters"], ub["view"]["players"][1]["monsters"])
 
             # Reconnection: Ben drops and resumes with his token, receiving a full sync.
@@ -156,12 +156,61 @@ class ServerSlice(unittest.TestCase):
             self.assertTrue(welcome.get("resumed"))
             sync = await b2.until(lambda m: m["t"] == "duel")
             self.assertTrue(sync["sync"])
-            self.assertEqual(sync["view"]["players"][1]["lp"], 2500)
+            self.assertEqual(sync["view"]["players"][1]["lp"], 3500)
             await asyncio.sleep(1.3)  # past the (shortened) grace period: Ben must still be seated
             self.assertIsNone(srv.rooms[code].duel.state["winner"])
             a.close()
             b2.close()
         finally:
+            server.close()
+
+
+class ServerSolo(unittest.TestCase):
+    def test_solo_against_computer(self):
+        asyncio.run(self.scenario())
+
+    async def scenario(self):
+        srvmod.BOT_PACE = 0
+        srv = srvmod.Server()
+        server = await asyncio.start_server(srv.handle_conn, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        try:
+            a = await Client.connect(port)
+            await a.send({"t": "hello"})
+            await a.send({"t": "create", "name": "Ana", "deck": "radiant", "solo": True,
+                          "difficulty": "hard", "bot_deck": "void", "showcase": True})
+            room = (await a.until(lambda m: m["t"] == "room"))["room"]
+            self.assertTrue(room["solo"])
+            self.assertTrue(room["seats"][1]["bot"] and room["seats"][1]["ready"])
+            self.assertEqual(room["seats"][1]["deck"], "void")
+            # Friends cannot join a solo room.
+            b = await Client.connect(port)
+            await b.send({"t": "hello"})
+            await b.send({"t": "join", "code": room["code"], "name": "Ben"})
+            self.assertIn("solo", (await b.until(lambda m: m["t"] == "error"))["msg"])
+            b.close()
+
+            await a.send({"t": "ready", "ready": True})
+            # Ana only ever passes or ends her turn; the computer should win on its own.
+            bot_acted = False
+            for _ in range(400):
+                u = await a.until(lambda m: m["t"] == "duel", timeout=5)
+                if u["view"]["winner"] is not None:
+                    break
+                bot_acted = bot_acted or any(e.get("player") == 1 and e["type"] == "MONSTER_SUMMONED" for e in u["events"])
+                self.assertIsNone(u["view"]["players"][1]["hand"])
+                if u["decider"] == 0 and u["actions"]:
+                    pick = next((x for x in u["actions"] if x["kind"] in ("pass", "end_turn", "discard")), None)
+                    if pick:
+                        await a.send({"t": "act", "id": pick["id"]})
+            self.assertTrue(bot_acted)
+            self.assertEqual(u["view"]["winner"], 1)
+            room = (await a.until(lambda m: m["t"] == "room" and m["room"]["state"] == "ended"))["room"]
+            self.assertTrue(room["seats"][1]["ready"], "the computer is ready for a rematch")
+            a.close()
+            await asyncio.sleep(0.1)
+        finally:
+            srvmod.BOT_PACE = 1.0
             server.close()
 
 

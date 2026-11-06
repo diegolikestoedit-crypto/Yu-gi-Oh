@@ -397,7 +397,7 @@
       "atk": 2600,
       "def": 2100,
       "rarity": "ultra",
-      "text": "Lumen Sentinel + Skyreach Hawk. When knight and hawk swear the same oath, the sky itself takes up arms.",
+      "text": "Fusion (Level 7+): Lumen Sentinel + Skyreach Hawk. When knight and hawk swear the same oath, the sky itself takes up arms.",
       "rulesets": [
         "frontier",
         "citadel"
@@ -430,7 +430,7 @@
       "type": "spell",
       "subtype": "normal",
       "rarity": "rare",
-      "text": "Draw 2 cards.",
+      "text": "Draw 2 cards. (Limited: 1 per deck.)",
       "rulesets": [
         "frontier",
         "citadel"
@@ -450,7 +450,8 @@
           "a": "#ffd86b",
           "b": "#7ae7ff"
         }
-      }
+      },
+      "limit": 1
     },
     {
       "id": "LD-102",
@@ -458,7 +459,7 @@
       "type": "spell",
       "subtype": "normal",
       "rarity": "ultra",
-      "text": "Destroy all monsters on the field.",
+      "text": "Destroy all monsters on the field. (Limited: 1 per deck.)",
       "rulesets": [
         "frontier",
         "citadel"
@@ -477,7 +478,8 @@
           "a": "#1a0630",
           "b": "#b45cff"
         }
-      }
+      },
+      "limit": 1
     },
     {
       "id": "LD-103",
@@ -485,7 +487,7 @@
       "type": "spell",
       "subtype": "normal",
       "rarity": "rare",
-      "text": "Target 1 monster your opponent controls; destroy it.",
+      "text": "Target 1 monster your opponent controls; destroy it. (Limited: 1 per deck.)",
       "rulesets": [
         "frontier",
         "citadel"
@@ -508,7 +510,8 @@
           "a": "#fff7a8",
           "b": "#6ab8ff"
         }
-      }
+      },
+      "limit": 1
     },
     {
       "id": "LD-104",
@@ -516,7 +519,7 @@
       "type": "spell",
       "subtype": "normal",
       "rarity": "ultra",
-      "text": "Target 1 monster in either player's Graveyard; Special Summon it to your field in Attack Position.",
+      "text": "Target 1 monster in either player's Graveyard; Special Summon it to your field in Attack Position. (Limited: 1 per deck.)",
       "rulesets": [
         "frontier",
         "citadel"
@@ -540,7 +543,8 @@
           "a": "#9effc4",
           "b": "#ffffff"
         }
-      }
+      },
+      "limit": 1
     },
     {
       "id": "LD-105",
@@ -743,7 +747,7 @@
       "type": "trap",
       "subtype": "normal",
       "rarity": "ultra",
-      "text": "When an opponent's monster declares an attack: Destroy all Attack Position monsters your opponent controls.",
+      "text": "When an opponent's monster declares an attack: Destroy all Attack Position monsters your opponent controls. (Limited: 1 per deck.)",
       "rulesets": [
         "frontier",
         "citadel"
@@ -763,7 +767,8 @@
           "a": "#d8f6ff",
           "b": "#ff9bf0"
         }
-      }
+      },
+      "limit": 1
     },
     {
       "id": "LD-202",
@@ -1790,6 +1795,1360 @@
           "b": "#9ff07a"
         }
       }
+    },
+    {
+      "id": "LD-301",
+      "name": "Dawnward Scout",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "LIGHT",
+      "race": "Warrior",
+      "level": 3,
+      "atk": 1200,
+      "def": 1000,
+      "rarity": "common",
+      "text": "When this card is summoned: add 1 Level 4 or lower LIGHT monster from your Deck to your hand.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "light",
+        "palette": {
+          "body": "#f4e6b8",
+          "shade": "#a8926a",
+          "accent": "#7ae7ff",
+          "glow": "#fff6d0",
+          "eye": "#2b9bff",
+          "cloth": "#3a6ab8"
+        }
+      },
+      "effect": {
+        "trigger": "summon",
+        "label": "searches a LIGHT monster",
+        "ops": [
+          {
+            "op": "search_deck",
+            "filter": {
+              "max_level": 4,
+              "attribute": "LIGHT"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-302",
+      "name": "Halo Wisp",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "LIGHT",
+      "race": "Fairy",
+      "level": 2,
+      "atk": 600,
+      "def": 1400,
+      "rarity": "common",
+      "text": "FLIP: You gain 1000 Life Points, then draw 1 card.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "fairy",
+        "scale": 0.85,
+        "summon": "light_pillar",
+        "attack": "shards",
+        "aura": "light",
+        "palette": {
+          "body": "#fffbe8",
+          "shade": "#d8c890",
+          "accent": "#ffd86a",
+          "glow": "#ffffff",
+          "eye": "#ff9b3a",
+          "wing": "#fff0b0"
+        }
+      },
+      "effect": {
+        "trigger": "flip",
+        "label": "restores 1000 LP and draws",
+        "ops": [
+          {
+            "op": "gain_lp",
+            "amount": 1000
+          },
+          {
+            "op": "draw",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-303",
+      "name": "Sunlance Paladin",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "LIGHT",
+      "race": "Warrior",
+      "level": 6,
+      "atk": 2300,
+      "def": 1500,
+      "rarity": "rare",
+      "text": "If this card attacks a Defense Position monster, it inflicts piercing battle damage (the difference in ATK and DEF).",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.1,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "light",
+        "palette": {
+          "body": "#ffe9a8",
+          "shade": "#b08a3a",
+          "accent": "#ffffff",
+          "glow": "#fff6d0",
+          "eye": "#ffcf3a",
+          "cloth": "#b83a2a"
+        }
+      },
+      "piercing": true
+    },
+    {
+      "id": "LD-304",
+      "name": "Hex Mimic",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "DARK",
+      "race": "Fiend",
+      "level": 3,
+      "atk": 800,
+      "def": 1200,
+      "rarity": "rare",
+      "text": "FLIP: Destroy the monster your opponent controls with the highest ATK.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "imp",
+        "scale": 1.0,
+        "summon": "shadow_pool",
+        "attack": "shadow_bolt",
+        "aura": "dark",
+        "palette": {
+          "body": "#5a2a6a",
+          "shade": "#24102e",
+          "accent": "#ffcf3a",
+          "glow": "#ffe8a0",
+          "eye": "#ff3a5a",
+          "wing": "#3a1a48"
+        }
+      },
+      "effect": {
+        "trigger": "flip",
+        "label": "destroys the strongest enemy",
+        "ops": [
+          {
+            "op": "destroy_strongest_opp"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-305",
+      "name": "Void Acolyte",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "DARK",
+      "race": "Spellcaster",
+      "level": 4,
+      "atk": 1500,
+      "def": 1100,
+      "rarity": "common",
+      "text": "When this card is destroyed by battle: Special Summon 1 DARK monster with 1500 or less ATK from your Deck.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "sorcerer",
+        "scale": 1.0,
+        "summon": "arcane_circle",
+        "attack": "void_orb",
+        "aura": "dark",
+        "palette": {
+          "body": "#3a2a5a",
+          "shade": "#160e26",
+          "accent": "#b45cff",
+          "glow": "#e0b8ff",
+          "eye": "#c87aff",
+          "cloth": "#2a1a48",
+          "skin": "#d8c8e8"
+        }
+      },
+      "effect": {
+        "trigger": "destroyed_by_battle",
+        "label": "calls a DARK ally from the Deck",
+        "ops": [
+          {
+            "op": "special_from_deck",
+            "filter": {
+              "max_atk": 1500,
+              "attribute": "DARK"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-306",
+      "name": "Blaze Cub",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "FIRE",
+      "race": "Dragon",
+      "level": 3,
+      "atk": 1300,
+      "def": 800,
+      "rarity": "common",
+      "text": "When this card is summoned: inflict 500 damage to your opponent.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 0.8,
+        "summon": "flame_burst",
+        "attack": "fire_breath",
+        "aura": "fire",
+        "palette": {
+          "body": "#ff7a3a",
+          "shade": "#9a3014",
+          "accent": "#ffe07a",
+          "glow": "#fff0b0",
+          "eye": "#3a1a08",
+          "wing": "#e24a1c"
+        }
+      },
+      "effect": {
+        "trigger": "summon",
+        "label": "burns the opponent for 500",
+        "ops": [
+          {
+            "op": "damage_opponent",
+            "amount": 500
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-307",
+      "name": "Inferno Lancer",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "FIRE",
+      "race": "Warrior",
+      "level": 4,
+      "atk": 1800,
+      "def": 600,
+      "rarity": "common",
+      "text": "If this card attacks a Defense Position monster, it inflicts piercing battle damage (the difference in ATK and DEF).",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "fire",
+        "palette": {
+          "body": "#d8502a",
+          "shade": "#6a1a10",
+          "accent": "#ffd24a",
+          "glow": "#ffe6a0",
+          "eye": "#fff36a",
+          "cloth": "#3a1a14"
+        }
+      },
+      "piercing": true
+    },
+    {
+      "id": "LD-308",
+      "name": "Tidecaller Nymph",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "WATER",
+      "race": "Fairy",
+      "level": 4,
+      "atk": 1400,
+      "def": 1500,
+      "rarity": "rare",
+      "text": "When this card is summoned: destroy 1 Spell/Trap your opponent controls (a Set card if possible).",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "fairy",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "shards",
+        "aura": "water",
+        "palette": {
+          "body": "#bff0ff",
+          "shade": "#4a98c0",
+          "accent": "#3ad6c8",
+          "glow": "#ffffff",
+          "eye": "#1e5ab8",
+          "wing": "#7fe0ff"
+        }
+      },
+      "effect": {
+        "trigger": "summon",
+        "label": "washes away a Spell/Trap",
+        "ops": [
+          {
+            "op": "destroy_opp_st"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-309",
+      "name": "Abyss Lurker",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "WATER",
+      "race": "Sea Serpent",
+      "level": 3,
+      "atk": 1000,
+      "def": 1600,
+      "rarity": "common",
+      "text": "FLIP: Draw 2 cards.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "serpent",
+        "scale": 0.85,
+        "summon": "water_spout",
+        "attack": "water_jet",
+        "aura": "water",
+        "palette": {
+          "body": "#1e4a6a",
+          "shade": "#0a1e2e",
+          "accent": "#7ff0d8",
+          "glow": "#c8fff4",
+          "eye": "#ffd86a",
+          "fin": "#2e7a94"
+        }
+      },
+      "effect": {
+        "trigger": "flip",
+        "label": "draws 2 cards",
+        "ops": [
+          {
+            "op": "draw",
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-310",
+      "name": "Rampart Tortoise",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "EARTH",
+      "race": "Rock",
+      "level": 4,
+      "atk": 600,
+      "def": 2200,
+      "rarity": "common",
+      "text": "When this card is destroyed by battle: draw 1 card.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "golem",
+        "scale": 1.0,
+        "summon": "earth_rise",
+        "attack": "slam",
+        "aura": "earth",
+        "palette": {
+          "body": "#7a8a5a",
+          "shade": "#3a4428",
+          "accent": "#d8c06a",
+          "glow": "#f0f8b0",
+          "eye": "#ffcf3a"
+        }
+      },
+      "effect": {
+        "trigger": "destroyed_by_battle",
+        "label": "draws a card",
+        "ops": [
+          {
+            "op": "draw",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-311",
+      "name": "Quarry Scout",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "EARTH",
+      "race": "Warrior",
+      "level": 3,
+      "atk": 1100,
+      "def": 1300,
+      "rarity": "common",
+      "text": "When this card is summoned: add 1 Level 4 or lower EARTH monster from your Deck to your hand.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "earth",
+        "palette": {
+          "body": "#b0a080",
+          "shade": "#5e5038",
+          "accent": "#9fe06a",
+          "glow": "#e8f8c0",
+          "eye": "#ffcf3a",
+          "cloth": "#5a7a2a"
+        }
+      },
+      "effect": {
+        "trigger": "summon",
+        "label": "searches an EARTH monster",
+        "ops": [
+          {
+            "op": "search_deck",
+            "filter": {
+              "max_level": 4,
+              "attribute": "EARTH"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-312",
+      "name": "Night Courtier",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "DARK",
+      "race": "Spellcaster",
+      "level": 4,
+      "atk": 1700,
+      "def": 1000,
+      "rarity": "common",
+      "text": "When this card is destroyed by battle: inflict 800 damage to your opponent.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "sorcerer",
+        "scale": 1.0,
+        "summon": "arcane_circle",
+        "attack": "void_orb",
+        "aura": "dark",
+        "palette": {
+          "body": "#2a1a3a",
+          "shade": "#100818",
+          "accent": "#e0b04a",
+          "glow": "#ffb0c8",
+          "eye": "#ff3a5a",
+          "cloth": "#6a1a3a",
+          "skin": "#e0d0e0"
+        }
+      },
+      "effect": {
+        "trigger": "destroyed_by_battle",
+        "label": "curses the opponent for 800",
+        "ops": [
+          {
+            "op": "damage_opponent",
+            "amount": 800
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-313",
+      "name": "Shadow Leech",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "DARK",
+      "race": "Fiend",
+      "level": 2,
+      "atk": 500,
+      "def": 500,
+      "rarity": "common",
+      "text": "FLIP: Destroy 1 Spell/Trap your opponent controls (a Set card if possible).",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "imp",
+        "scale": 0.85,
+        "summon": "shadow_pool",
+        "attack": "shadow_bolt",
+        "aura": "dark",
+        "palette": {
+          "body": "#2a2a3a",
+          "shade": "#0e0e18",
+          "accent": "#5af0c8",
+          "glow": "#b0fff0",
+          "eye": "#5af0c8",
+          "wing": "#1e1e2e"
+        }
+      },
+      "effect": {
+        "trigger": "flip",
+        "label": "devours a Spell/Trap",
+        "ops": [
+          {
+            "op": "destroy_opp_st"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-314",
+      "name": "Glass Marionette",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "LIGHT",
+      "race": "Fairy",
+      "level": 4,
+      "atk": 1300,
+      "def": 1700,
+      "rarity": "common",
+      "text": "When this card is destroyed by battle: Special Summon 1 LIGHT monster with 1500 or less ATK from your Deck.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "fairy",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "shards",
+        "aura": "light",
+        "palette": {
+          "body": "#e8f4ff",
+          "shade": "#8aa8c8",
+          "accent": "#ff9bf0",
+          "glow": "#ffffff",
+          "eye": "#5a3aa8",
+          "wing": "#c8e8ff"
+        }
+      },
+      "effect": {
+        "trigger": "destroyed_by_battle",
+        "label": "pulls a LIGHT puppet from the Deck",
+        "ops": [
+          {
+            "op": "special_from_deck",
+            "filter": {
+              "max_atk": 1500,
+              "attribute": "LIGHT"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-315",
+      "name": "Prism Weaver",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "LIGHT",
+      "race": "Spellcaster",
+      "level": 4,
+      "atk": 1400,
+      "def": 1200,
+      "rarity": "rare",
+      "text": "When this card is summoned: destroy 1 Spell/Trap your opponent controls (a Set card if possible).",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "sorcerer",
+        "scale": 1.0,
+        "summon": "arcane_circle",
+        "attack": "void_orb",
+        "aura": "light",
+        "palette": {
+          "body": "#d8e8f8",
+          "shade": "#6a7aa0",
+          "accent": "#ff9bf0",
+          "glow": "#ffffff",
+          "eye": "#7ae8ff",
+          "cloth": "#5a3aa8",
+          "skin": "#f0e0f0"
+        }
+      },
+      "effect": {
+        "trigger": "summon",
+        "label": "shatters a Spell/Trap",
+        "ops": [
+          {
+            "op": "destroy_opp_st"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-316",
+      "name": "Clockwork Thief",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "DARK",
+      "race": "Machine",
+      "level": 4,
+      "atk": 1500,
+      "def": 1300,
+      "rarity": "common",
+      "text": "When this card is summoned: draw 1 card.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "golem",
+        "scale": 1.0,
+        "summon": "earth_rise",
+        "attack": "slam",
+        "aura": "dark",
+        "palette": {
+          "body": "#6a5a48",
+          "shade": "#2e261e",
+          "accent": "#e0b04a",
+          "glow": "#ffe8a0",
+          "eye": "#3ad6c8"
+        }
+      },
+      "effect": {
+        "trigger": "summon",
+        "label": "steals a card",
+        "ops": [
+          {
+            "op": "draw",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-317",
+      "name": "Gear Hound",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "DARK",
+      "race": "Machine",
+      "level": 3,
+      "atk": 1300,
+      "def": 900,
+      "rarity": "common",
+      "text": "If this card attacks a Defense Position monster, it inflicts piercing battle damage (the difference in ATK and DEF).",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "imp",
+        "scale": 1.0,
+        "summon": "shadow_pool",
+        "attack": "shadow_bolt",
+        "aura": "dark",
+        "palette": {
+          "body": "#5a5a62",
+          "shade": "#26262c",
+          "accent": "#e0b04a",
+          "glow": "#ffe8a0",
+          "eye": "#ff5a3a",
+          "wing": "#3a3a42"
+        }
+      },
+      "piercing": true
+    },
+    {
+      "id": "LD-318",
+      "name": "Ashen Salamander",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "FIRE",
+      "race": "Reptile",
+      "level": 4,
+      "atk": 1500,
+      "def": 1200,
+      "rarity": "common",
+      "text": "When this card is destroyed by battle: inflict 500 damage to your opponent.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "serpent",
+        "scale": 1.0,
+        "summon": "water_spout",
+        "attack": "water_jet",
+        "aura": "fire",
+        "palette": {
+          "body": "#c8482a",
+          "shade": "#5a1608",
+          "accent": "#ffd24a",
+          "glow": "#ffe9a0",
+          "eye": "#fff36a",
+          "fin": "#ff8a3a"
+        }
+      },
+      "effect": {
+        "trigger": "destroyed_by_battle",
+        "label": "erupts for 500 damage",
+        "ops": [
+          {
+            "op": "damage_opponent",
+            "amount": 500
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-319",
+      "name": "Brine Warden",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "WATER",
+      "race": "Warrior",
+      "level": 5,
+      "atk": 2000,
+      "def": 1500,
+      "rarity": "common",
+      "text": "When this card is summoned: you gain 1000 Life Points.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.0,
+        "summon": "light_pillar",
+        "attack": "blade_dash",
+        "aura": "water",
+        "palette": {
+          "body": "#4a8ab8",
+          "shade": "#1e3a62",
+          "accent": "#e8f0ff",
+          "glow": "#c8e8ff",
+          "eye": "#7ff0d8",
+          "cloth": "#1e4a6a"
+        }
+      },
+      "effect": {
+        "trigger": "summon",
+        "label": "restores 1000 LP",
+        "ops": [
+          {
+            "op": "gain_lp",
+            "amount": 1000
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-320",
+      "name": "Crag Rhino",
+      "type": "monster",
+      "subtype": "effect",
+      "attribute": "EARTH",
+      "race": "Beast",
+      "level": 4,
+      "atk": 1800,
+      "def": 1000,
+      "rarity": "common",
+      "text": "If this card attacks a Defense Position monster, it inflicts piercing battle damage (the difference in ATK and DEF).",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "golem",
+        "scale": 1.0,
+        "summon": "earth_rise",
+        "attack": "slam",
+        "aura": "earth",
+        "palette": {
+          "body": "#8a7a64",
+          "shade": "#463a2c",
+          "accent": "#c8e06a",
+          "glow": "#f0ffb0",
+          "eye": "#ff8a3a"
+        }
+      },
+      "piercing": true
+    },
+    {
+      "id": "LD-F02",
+      "name": "Eclipse Archmage",
+      "type": "monster",
+      "subtype": "fusion",
+      "attribute": "DARK",
+      "race": "Spellcaster",
+      "level": 8,
+      "atk": 2900,
+      "def": 2400,
+      "rarity": "ultra",
+      "text": "Fusion (Level 7+): Nyxar, Void Sorcerer + Shade Apprentice. When Fusion Summoned: destroy 1 Spell/Trap your opponent controls.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "sorcerer",
+        "scale": 1.3,
+        "summon": "fusion_vortex",
+        "attack": "void_orb",
+        "aura": "dark",
+        "palette": {
+          "body": "#1e1030",
+          "shade": "#0a0414",
+          "accent": "#ffcf3a",
+          "glow": "#e0b8ff",
+          "eye": "#b45cff",
+          "cloth": "#3a1a6a",
+          "skin": "#d8c8e8"
+        }
+      },
+      "materials": [
+        "LD-007",
+        "LD-011"
+      ],
+      "effect": {
+        "trigger": "summon",
+        "label": "erases a Spell/Trap",
+        "ops": [
+          {
+            "op": "destroy_opp_st"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-F03",
+      "name": "Blazeguard Dragoon",
+      "type": "monster",
+      "subtype": "fusion",
+      "attribute": "FIRE",
+      "race": "Dragon",
+      "level": 7,
+      "atk": 2700,
+      "def": 2000,
+      "rarity": "ultra",
+      "text": "Fusion (Level 7+): Ember Drake + Flamecrest Knight. Piercing: inflicts battle damage through Defense Position monsters.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "dragon",
+        "scale": 1.3,
+        "summon": "fusion_vortex",
+        "attack": "fire_breath",
+        "aura": "fire",
+        "palette": {
+          "body": "#d8402a",
+          "shade": "#5a1208",
+          "accent": "#ffd84a",
+          "glow": "#fff0a8",
+          "eye": "#fff36a",
+          "wing": "#ff7a2a"
+        }
+      },
+      "materials": [
+        "LD-006",
+        "LD-015"
+      ],
+      "piercing": true
+    },
+    {
+      "id": "LD-F04",
+      "name": "Maelstrom Oracle",
+      "type": "monster",
+      "subtype": "fusion",
+      "attribute": "WATER",
+      "race": "Spellcaster",
+      "level": 7,
+      "atk": 2600,
+      "def": 2300,
+      "rarity": "ultra",
+      "text": "Fusion (Level 7+): Storm Petrel + Deepsea Oracle. When Fusion Summoned: draw 1 card.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "sorcerer",
+        "scale": 1.25,
+        "summon": "fusion_vortex",
+        "attack": "void_orb",
+        "aura": "water",
+        "palette": {
+          "body": "#1e5a8a",
+          "shade": "#0a2440",
+          "accent": "#7ff0d8",
+          "glow": "#c8fff4",
+          "eye": "#7ff0d8",
+          "cloth": "#e8d8a8",
+          "skin": "#b8e0e8"
+        }
+      },
+      "materials": [
+        "LD-021",
+        "LD-022"
+      ],
+      "effect": {
+        "trigger": "summon",
+        "label": "reads the currents and draws",
+        "ops": [
+          {
+            "op": "draw",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-F05",
+      "name": "Bastion Basilisk",
+      "type": "monster",
+      "subtype": "fusion",
+      "attribute": "EARTH",
+      "race": "Reptile",
+      "level": 7,
+      "atk": 2400,
+      "def": 2900,
+      "rarity": "ultra",
+      "text": "Fusion (Level 7+): Quarry Knight + Moss Serpent. When Fusion Summoned: you gain 1000 Life Points.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "serpent",
+        "scale": 1.3,
+        "summon": "fusion_vortex",
+        "attack": "water_jet",
+        "aura": "earth",
+        "palette": {
+          "body": "#6a8a3a",
+          "shade": "#2a3a14",
+          "accent": "#e0c05a",
+          "glow": "#f0ffb0",
+          "eye": "#ffcf3a",
+          "fin": "#9ac04a"
+        }
+      },
+      "materials": [
+        "LD-024",
+        "LD-025"
+      ],
+      "effect": {
+        "trigger": "summon",
+        "label": "restores 1000 LP",
+        "ops": [
+          {
+            "op": "gain_lp",
+            "amount": 1000
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-F06",
+      "name": "Dusk Reaper",
+      "type": "monster",
+      "subtype": "fusion",
+      "attribute": "DARK",
+      "race": "Zombie",
+      "level": 7,
+      "atk": 2700,
+      "def": 1800,
+      "rarity": "ultra",
+      "text": "Fusion (Level 7+): Dread Revenant + Wraith Raven. When Fusion Summoned: inflict 700 damage to your opponent.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.25,
+        "summon": "fusion_vortex",
+        "attack": "blade_dash",
+        "aura": "dark",
+        "palette": {
+          "body": "#3a3a4a",
+          "shade": "#121218",
+          "accent": "#b45cff",
+          "glow": "#e0b8ff",
+          "eye": "#c87aff",
+          "cloth": "#1a0a2a"
+        }
+      },
+      "materials": [
+        "LD-030",
+        "LD-032"
+      ],
+      "effect": {
+        "trigger": "summon",
+        "label": "reaps 700 LP",
+        "ops": [
+          {
+            "op": "damage_opponent",
+            "amount": 700
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-F07",
+      "name": "Kaleido Paladin",
+      "type": "monster",
+      "subtype": "fusion",
+      "attribute": "LIGHT",
+      "race": "Warrior",
+      "level": 8,
+      "atk": 2800,
+      "def": 2500,
+      "rarity": "ultra",
+      "text": "Fusion (Level 7+): Mirror Knight + Prism Golem. Piercing: inflicts battle damage through Defense Position monsters.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "knight",
+        "scale": 1.25,
+        "summon": "fusion_vortex",
+        "attack": "blade_dash",
+        "aura": "light",
+        "palette": {
+          "body": "#e0f0ff",
+          "shade": "#7a8ab0",
+          "accent": "#ff9bf0",
+          "glow": "#ffffff",
+          "eye": "#7ae8ff",
+          "cloth": "#5a3aa8"
+        }
+      },
+      "materials": [
+        "LD-034",
+        "LD-036"
+      ],
+      "piercing": true
+    },
+    {
+      "id": "LD-F08",
+      "name": "Grand Curator",
+      "type": "monster",
+      "subtype": "fusion",
+      "attribute": "DARK",
+      "race": "Machine",
+      "level": 7,
+      "atk": 2600,
+      "def": 2400,
+      "rarity": "ultra",
+      "text": "Fusion (Level 7+): Relic Hunter + Curio Imp. When Fusion Summoned: add 1 Level 4 or lower monster from your Deck to your hand.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "visual": {
+        "rig": "golem",
+        "scale": 1.3,
+        "summon": "fusion_vortex",
+        "attack": "slam",
+        "aura": "dark",
+        "palette": {
+          "body": "#6a5a3a",
+          "shade": "#2a2414",
+          "accent": "#ffd86a",
+          "glow": "#fff0b0",
+          "eye": "#3ad6c8"
+        }
+      },
+      "materials": [
+        "LD-039",
+        "LD-040"
+      ],
+      "effect": {
+        "trigger": "summon",
+        "label": "catalogues a monster from the Deck",
+        "ops": [
+          {
+            "op": "search_deck",
+            "filter": {
+              "max_level": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "LD-121",
+      "name": "Sunforged Blade",
+      "type": "spell",
+      "subtype": "equip",
+      "rarity": "common",
+      "text": "Equip only to a face-up monster you control. It gains 700 ATK.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "equip",
+            "atk": 700
+          }
+        ]
+      },
+      "visual": {
+        "fx": "equip_blade",
+        "element": "fire",
+        "palette": {
+          "a": "#5a2a0a",
+          "b": "#ffcf5a"
+        }
+      }
+    },
+    {
+      "id": "LD-122",
+      "name": "Aegis Mantle",
+      "type": "spell",
+      "subtype": "equip",
+      "rarity": "common",
+      "text": "Equip only to a face-up monster you control. It gains 300 ATK and 800 DEF.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "equip",
+            "atk": 300,
+            "def": 800
+          }
+        ]
+      },
+      "visual": {
+        "fx": "equip_shield",
+        "element": "barrier",
+        "palette": {
+          "a": "#0e2e4a",
+          "b": "#9fe8ff"
+        }
+      }
+    },
+    {
+      "id": "LD-123",
+      "name": "Surge Strike",
+      "type": "spell",
+      "subtype": "quickplay",
+      "rarity": "rare",
+      "text": "Quick-Play: target 1 face-up monster you control; it gains 1000 ATK until the end of this turn. Can be used during the Battle Phase, or from a Set position on your opponent's turn.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "boost",
+            "atk": 1000
+          }
+        ]
+      },
+      "visual": {
+        "fx": "surge",
+        "element": "lightning",
+        "palette": {
+          "a": "#2a1a5a",
+          "b": "#ffe86a"
+        }
+      }
+    },
+    {
+      "id": "LD-124",
+      "name": "Tempest Sweep",
+      "type": "spell",
+      "subtype": "normal",
+      "rarity": "rare",
+      "text": "Target 1 Spell/Trap your opponent controls; destroy it. (Limited: 1 per deck.)",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "destroy_target_st"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "tempest",
+        "element": "energy",
+        "palette": {
+          "a": "#0a3a3a",
+          "b": "#9fffe0"
+        }
+      },
+      "limit": 1
+    },
+    {
+      "id": "LD-125",
+      "name": "Scout's Lantern",
+      "type": "spell",
+      "subtype": "normal",
+      "rarity": "common",
+      "text": "Add 1 Level 4 or lower monster from your Deck to your hand. (Limited: 1 per deck.)",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "search_deck",
+            "filter": {
+              "max_level": 4
+            }
+          }
+        ]
+      },
+      "visual": {
+        "fx": "lantern",
+        "element": "light",
+        "palette": {
+          "a": "#3a2a0a",
+          "b": "#ffd86a"
+        }
+      },
+      "limit": 1
+    },
+    {
+      "id": "LD-126",
+      "name": "Mystic Squall",
+      "type": "spell",
+      "subtype": "quickplay",
+      "rarity": "rare",
+      "text": "Quick-Play: target 1 Spell/Trap your opponent controls; destroy it. Can be chained from a Set position, even to destroy the card your opponent is activating.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "destroy_target_st"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "squall",
+        "element": "energy",
+        "palette": {
+          "a": "#0a2a3a",
+          "b": "#7af0ff"
+        }
+      }
+    },
+    {
+      "id": "LD-211",
+      "name": "Null Seal",
+      "type": "trap",
+      "subtype": "counter",
+      "rarity": "rare",
+      "text": "Counter Trap: when your opponent activates a Spell: pay 1000 LP; negate the activation and destroy it.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "pay_lp",
+            "amount": 1000
+          },
+          {
+            "op": "negate_spell"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "null_seal",
+        "element": "barrier",
+        "palette": {
+          "a": "#2a0a2a",
+          "b": "#ff6ad8"
+        }
+      },
+      "cost_lp": 1000,
+      "trigger": "opp_spell"
+    },
+    {
+      "id": "LD-212",
+      "name": "Gravity Snare",
+      "type": "trap",
+      "subtype": "normal",
+      "rarity": "common",
+      "text": "When an opponent's monster declares an attack: change all Attack Position monsters your opponent controls to Defense Position. The attack is stopped.",
+      "rulesets": [
+        "frontier",
+        "citadel"
+      ],
+      "effect": {
+        "ops": [
+          {
+            "op": "all_opp_to_defense"
+          }
+        ]
+      },
+      "visual": {
+        "fx": "gravity",
+        "element": "darkness",
+        "palette": {
+          "a": "#14082a",
+          "b": "#a07aff"
+        }
+      },
+      "trigger": "opp_attack"
     }
   ]
 }

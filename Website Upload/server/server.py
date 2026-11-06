@@ -16,6 +16,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from engine.cards import ROOT, SHARED, load_db, load_decks, validate_deck  # noqa: E402
+from engine.ai import DIFFICULTIES, DuelAI  # noqa: E402
 from engine.rules import PROFILES, Duel, RuleError  # noqa: E402
 from ws import ConnectionClosed, WebSocket  # noqa: E402
 
@@ -25,6 +26,7 @@ PING_SECONDS = 20
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 MAX_MSGS_PER_SEC = 20
 ARENAS = ("meadow", "neon", "frost", "arena")  # cosmetic battlefields; no effect on rules
+BOT_PACE = 1.0  # scales the computer's thinking pause in solo duels (tests set 0)
 
 log = logging.getLogger("living-duel")
 DB = load_db()
@@ -32,6 +34,17 @@ DECKS = load_decks()
 
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("application/json", ".json")
+
+
+def hint_for(duel: Duel, seat: int):
+    """The guide's suggested play for whoever must decide: advice only, the player still chooses."""
+    if duel.decider() != seat:
+        return None
+    try:
+        return DuelAI(seat, "hard").advise(duel)
+    except Exception:  # advice must never break a duel
+        log.exception("hint failed")
+        return None
 
 
 def clean_name(raw) -> str:
@@ -49,23 +62,42 @@ class Seat:
         self.room: Room | None = None
         self.index = 0
         self.drop_task: asyncio.Task | None = None
+        self.bot = False
 
     @property
     def connected(self):
-        return self.ws is not None and not self.ws.closed
+        return self.bot or (self.ws is not None and not self.ws.closed)
+
+
+class BotSeat(Seat):
+    """The computer opponent in a solo room: always connected, always ready."""
+
+    def __init__(self, deck):
+        super().__init__(bot_name(deck), deck)
+        self.bot = True
+        self.ready = True
+
+
+def bot_name(deck):
+    du = DECKS[deck].get("duelist") or {}
+    return du.get("name") or "Computer"
 
 
 class Room:
     def __init__(self, code):
         self.code = code
         self.seats: list = [None, None]
-        self.profile = "frontier"
+        self.profile = "citadel"
         self.showcase = True
         self.arena = "meadow"
         self.state = "lobby"  # lobby | duel | ended
         self.duel: Duel | None = None
         self.seq = 0
         self.created = time.time()
+        self.solo = False
+        self.difficulty = "normal"
+        self.ai: DuelAI | None = None
+        self.bot_task: asyncio.Task | None = None
 
     def summary(self):
         return {
@@ -75,8 +107,10 @@ class Room:
             "showcase": self.showcase,
             "arena": self.arena,
             "state": self.state,
+            "solo": self.solo,
+            "difficulty": self.difficulty,
             "seats": [None if s is None else {
-                "name": s.name, "deck": s.deck, "ready": s.ready, "connected": s.connected,
+                "name": s.name, "deck": s.deck, "ready": s.ready, "connected": s.connected, "bot": s.bot,
             } for s in self.seats],
         }
 
@@ -89,7 +123,7 @@ class Server:
     # ------------------------------------------------------------ messaging
 
     async def send(self, seat: Seat, msg: dict):
-        if seat and seat.connected:
+        if seat and not seat.bot and seat.connected:
             try:
                 await seat.ws.send(json.dumps(msg, separators=(",", ":")))
             except ConnectionClosed:
@@ -119,20 +153,23 @@ class Server:
                 "view": duel.view(i),
                 "actions": duel.legal_actions(i),
                 "decider": duel.decider(),
+                "hint": hint_for(duel, i),
             })
         if duel.state["winner"] is not None and room.state == "duel":
             room.state = "ended"
             for s in room.seats:
                 if s:
-                    s.ready = False
+                    s.ready = s.bot
             await self.broadcast_room(room)
+        else:
+            self.schedule_bot(room, len(events))
 
     async def sync_duel(self, room: Room, seat: Seat):
         duel = room.duel
         i = seat.index
         await self.send(seat, {"t": "duel", "seq": room.seq, "sync": True, "events": [],
                                "view": duel.view(i), "actions": duel.legal_actions(i),
-                               "decider": duel.decider()})
+                               "decider": duel.decider(), "hint": hint_for(duel, i)})
 
     # ---------------------------------------------------------------- rooms
 
@@ -156,10 +193,48 @@ class Server:
         room.duel = Duel(DB, decks, [s.name for s in room.seats], profile=room.profile,
                          first=0 if room.showcase else None, showcase=showcase)
         room.state = "duel"
+        room.ai = DuelAI(1, room.difficulty) if room.solo else None
         events = room.duel.start()
         await self.broadcast_room(room)
         await self.broadcast_duel(room, events)
         log.info("room %s: duel started (%s)", room.code, room.profile)
+
+    def close_room(self, room: Room):
+        self.rooms.pop(room.code, None)
+        if room.bot_task:
+            room.bot_task.cancel()
+        log.info("room %s closed", room.code)
+
+    def schedule_bot(self, room: Room, n_events: int):
+        """In a solo room, let the computer take its next action once the last one has had time to play out."""
+        duel = room.duel
+        if not room.ai or room.state != "duel" or duel.decider() != room.ai.p:
+            return
+        if room.bot_task and not room.bot_task.done():
+            return
+        delay = min(3.6, 0.8 + 0.4 * n_events) * BOT_PACE
+        room.bot_task = asyncio.ensure_future(self.bot_move(room, delay))
+
+    async def bot_move(self, room: Room, delay: float):
+        try:
+            await asyncio.sleep(delay)
+        except asyncio.CancelledError:
+            return
+        room.bot_task = None
+        duel = room.duel
+        if room.state != "duel" or room.ai is None or duel.decider() != room.ai.p:
+            return
+        if not room.seats[0] or not room.seats[0].connected:
+            return  # wait for the player to come back; reconnecting reschedules the AI
+        aid = room.ai.choose(duel)
+        if aid is None:
+            return
+        try:
+            events = duel.act(room.ai.p, aid)
+        except RuleError:
+            log.exception("room %s: AI chose an illegal action", room.code)
+            return
+        await self.broadcast_duel(room, events)
 
     async def on_disconnect(self, seat: Seat):
         room = seat.room
@@ -190,15 +265,14 @@ class Server:
             return
         room.seats[seat.index] = None
         seat.room = None
-        if all(s is None for s in room.seats):
-            self.rooms.pop(room.code, None)
-            log.info("room %s closed", room.code)
+        if all(s is None or s.bot for s in room.seats):
+            self.close_room(room)
             return
         if room.state != "duel":
             room.state = "lobby"
             for s in room.seats:
                 if s:
-                    s.ready = False
+                    s.ready = s.bot
         await self.broadcast_room(room)
 
     # ------------------------------------------------------------- handlers
@@ -253,6 +327,7 @@ class Server:
                 await self.send(other, {"t": "opponent", "connected": True})
                 if room.duel and room.state in ("duel", "ended"):
                     await self.sync_duel(room, found)
+                    self.schedule_bot(room, 0)
                 return found
             return None
         if t == "create":
@@ -269,6 +344,15 @@ class Server:
             room.showcase = bool(msg.get("showcase", True))
             if msg.get("arena") in ARENAS:
                 room.arena = msg["arena"]
+            if msg.get("solo"):
+                room.solo = True
+                if msg.get("difficulty") in DIFFICULTIES:
+                    room.difficulty = msg["difficulty"]
+                bot_deck = msg.get("bot_deck")
+                if bot_deck not in DECKS:
+                    bot_deck = secrets.choice([d for d in DECKS if d != deck] or list(DECKS))
+                room.seats[1] = BotSeat(bot_deck)
+                room.seats[1].room, room.seats[1].index = room, 1
             self.sessions[seat.token] = seat
             self.attach(seat, ws)
             await self.send_ws(ws, {"t": "welcome", "token": seat.token})
@@ -282,6 +366,8 @@ class Server:
             room = self.rooms.get(code)
             if room is None:
                 raise RuleError("No room with that code.")
+            if room.solo:
+                raise RuleError("That room is a solo duel against the computer.")
             if None not in room.seats:
                 raise RuleError("That room is full.")
             idx = room.seats.index(None)
@@ -326,9 +412,14 @@ class Server:
                 room.showcase = bool(msg["showcase"])
             if msg.get("arena") in ARENAS:
                 room.arena = msg["arena"]
+            if msg.get("difficulty") in DIFFICULTIES and room.solo:
+                room.difficulty = msg["difficulty"]
+            if room.solo and msg.get("bot_deck") in DECKS:
+                room.seats[1] = BotSeat(msg["bot_deck"])
+                room.seats[1].room, room.seats[1].index = room, 1
             for s in room.seats:
                 if s:
-                    s.ready = False
+                    s.ready = s.bot
             await self.broadcast_room(room)
             return seat
         if t == "ready":

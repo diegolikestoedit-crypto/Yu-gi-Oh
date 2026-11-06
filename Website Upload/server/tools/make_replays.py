@@ -23,7 +23,7 @@ FILLER = "LD-004"
 
 
 def deck(cids, extra=()):
-    return {"main": list(cids) + [FILLER] * max(0, 20 - len(cids)), "extra": list(extra)}
+    return {"main": list(cids) + [FILLER] * max(0, 50 - len(cids)), "extra": list(extra)}
 
 
 class Script:
@@ -78,6 +78,8 @@ class Script:
 
     def end(self, p):
         self.act(p, "end_turn")
+        while self.duel.state["pending"] and self.duel.state["pending"]["kind"] == "discard":
+            self.act(p, "discard")
         while self.duel.state["pending"] and self.duel.state["pending"]["kind"] == "discard":
             self.act(p, "discard")
 
@@ -197,6 +199,31 @@ def attacks():
     s.save("attacks")
 
 
+def technical():
+    """Equip, Quick-Play, Counter Trap, Spell/Trap destruction, monster effects and battle shattering."""
+    s = Script(["LD-002", "LD-121", "LD-124", "LD-123", "LD-001", "LD-301"], ["LD-211", "LD-034", "LD-304", "LD-126", "LD-004"],
+               profile="citadel")
+    knight = s.give(0, "LD-002")
+    s.act(0, "normal_summon", knight)
+    s.end(0)
+    seal = s.give(1, "LD-211")
+    mimic = s.give(1, "LD-304")
+    trap2 = s.give(1, "LD-126")
+    s.act(1, "set_monster", mimic)
+    s.act(1, "set_spell_trap", seal)
+    s.act(1, "set_spell_trap", trap2)
+    s.end(1)
+    sweep = s.give(0, "LD-124")
+    s.act(0, "activate_spell", sweep, target=trap2)
+    s.act(1, "pass")                                  # Ben lets it resolve: his Set Squall shatters
+    blade = s.give(0, "LD-121")
+    s.act(0, "activate_spell", blade, target=knight)  # Ben answers with Null Seal
+    s.act(1, "activate_trap", seal)
+    s.act(0, "enter_battle")
+    s.act(0, "attack", knight, target=mimic)          # FLIP: Mimic destroys the knight too
+    s.save("technical")
+
+
 if __name__ == "__main__":
-    for fn in (tribute, fusion, spells, traps, attacks):
+    for fn in (tribute, fusion, spells, traps, attacks, technical):
         fn()

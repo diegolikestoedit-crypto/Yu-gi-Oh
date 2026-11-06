@@ -1,6 +1,6 @@
 // Duel HUD: corner life-point plates, turn medallion + phase menu, hand, card detail panel, action
 // bubbles, prompts and the guide. Purely a view of server state; every button maps to a legal action id.
-import { card as cardData, typeLine } from "./carddb.js";
+import { card as cardData, typeLine, monsterKind, subtypeName } from "./carddb.js";
 import { cardURL } from "./render/cardart.js";
 import { guideMessage } from "./guide.js";
 import { settings } from "./settings.js";
@@ -8,6 +8,7 @@ import { audio } from "./audio.js";
 
 const $ = (id) => document.getElementById(id);
 const PHASE_LABEL = { draw: "Draw", standby: "Standby", main1: "Main 1", battle: "Battle", main2: "Main 2", end: "End" };
+const PHASE_HINT = { enter_battle: "Show me", enter_main2: "Show me", end_turn: "Show me" };
 const REASONS = { lp: "Life Points reached zero.", deck_out: "A duelist could not draw a card.", concede: "A duelist surrendered.", disconnect: "A duelist disconnected." };
 const BUBBLE = {
   normal_summon: ["⬆", "Summon"], set_monster: ["▼", "Set"], tribute_summon: ["✦", "Tribute"], activate_spell: ["✧", "Activate"],
@@ -47,7 +48,10 @@ export class DuelUI {
     $("guide-close").onclick = () => settings.set("guide", false);
     $("btn-guide").onclick = () => settings.set("guide", !settings.get("guide"));
     $("medallion").onclick = () => { audio.play("ui_click"); this.menuOpen = !this.menuOpen; this.renderMedallion(); };
-    settings.onChange((k) => { if (k === "guide" || k === "guideMin") this.renderGuide(true); if (k === "logOpen") this.renderLog(); });
+    settings.onChange((k) => {
+      if (k === "guide" || k === "guideMin" || k === "guideHints") { this.renderGuide(true); this.renderHighlights(); this.renderHand(); }
+      if (k === "logOpen") this.renderLog();
+    });
     $("btn-log").onclick = () => { audio.play("ui_click"); settings.set("logOpen", !settings.get("logOpen")); };
     $("log-close").onclick = () => settings.set("logOpen", false);
     stage.onHover = (hit) => { this.hover = hit && hit.iid ? hit.iid : null; if (!this.busy) this.renderSelection(); };
@@ -102,7 +106,7 @@ export class DuelUI {
       if (col) av.style.background = `radial-gradient(circle at 35% 30%, #fff 0, ${col} 30%, #0b0e1c 100%)`;
       box.querySelector(".lp-name").innerHTML = `${view.active === p ? '<span class="active-dot"></span>' : ""}${esc(pl.name)}`;
       this.rollLp(id, pl.lp);
-      const max = view.profile === "frontier" ? 3000 : 4000;
+      const max = view.profile === "frontier" ? 4000 : 8000;
       box.querySelector(".lp-fill").style.width = `${Math.max(0, Math.min(100, (pl.lp / max) * 100))}%`;
     }
     $("m-turn").textContent = view.active === null ? "Ready" : `Turn ${view.turn}`;
@@ -137,10 +141,11 @@ export class DuelUI {
     requestAnimationFrame(tick);
   }
 
-  update(view, actions, decider) {
+  update(view, actions, decider, hint) {
     this.view = view;
     this.actions = actions || [];
     this.decider = decider;
+    this.hint = hint && this.actions.some((a) => a.id === hint.id) ? hint : null;
     this.sent = false;
     this.menuOpen = false;
     if (this.sel && !this.cardExists(this.sel)) { this.sel = null; this.choose = null; }
@@ -236,6 +241,8 @@ export class DuelUI {
     }
     for (const d of box.children) {
       d.classList.toggle("playable", playable.has(d.dataset.iid));
+      const hint = this.activeHint();
+      d.classList.toggle("suggested", !!hint && hint.card === d.dataset.iid);
       d.classList.toggle("sel", d.dataset.iid === this.sel);
     }
     this.layoutHand();
@@ -265,6 +272,8 @@ export class DuelUI {
       if (!a.card) continue;
       if (mine.monsters.some((m) => m && m.iid === a.card) || mine.st.some((c) => c && c.iid === a.card)) H.set(a.card, "actionable");
     }
+    const hint = this.activeHint();
+    if (hint && hint.card && H.has(hint.card)) H.set(hint.card, "hint");
     if (!this.sel) return;
     H.set(this.sel, "selected");
     const acts = this.selActions();
@@ -314,8 +323,12 @@ export class DuelUI {
     }
     p.className = "prompt";
     if (pend.kind === "discard") { p.innerHTML = `<div class="p-title">Hand limit: choose a card in your hand to discard.</div>`; return; }
-    const title = pend.trigger === "opp_attack" ? "Your opponent declared an attack!" : "Your opponent summoned a monster!";
-    p.innerHTML = `<div class="p-title">${title} Respond with a Trap?</div><div class="p-btns"></div>`;
+    const about = pend.card && this.findCard(pend.card);
+    const aboutName = about && about.cid ? cardData(about.cid).name : "";
+    const title = pend.trigger === "opp_attack" ? "Your opponent declared an attack!"
+      : pend.trigger === "opp_spell" ? `Your opponent activated ${esc(aboutName || "a Spell")}!`
+      : `Your opponent summoned ${esc(aboutName || "a monster")}!`;
+    p.innerHTML = `<div class="p-title">${title} Respond with a Set card?</div><div class="p-btns"></div>`;
     const btns = p.querySelector(".p-btns");
     for (const a of this.actions) {
       const b = el("button", "btn" + (a.kind === "pass" ? "" : " primary"), esc(a.label));
@@ -351,10 +364,10 @@ export class DuelUI {
       const atk = c.atk ?? d.atk, def = c.defense ?? d.def;
       top.appendChild(el("div", "d-stats", `<span><i>LEVEL</i>★ ${d.level}</span><span class="${atk > d.atk ? "up" : ""}"><i>ATK</i>${atk}</span><span class="${def > d.def ? "up" : ""}"><i>DEF</i>${def}</span>${c.position ? `<span><i>POS</i>${c.position === "atk" ? "Attack" : "Defense"}</span>` : ""}`));
     } else {
-      top.appendChild(el("div", "d-stats", `<span><i>TYPE</i>${esc(d.subtype === "normal" ? "Normal" : d.subtype[0].toUpperCase() + d.subtype.slice(1))}</span>`));
+      top.appendChild(el("div", "d-stats", `<span><i>TYPE</i>${esc(subtypeName(d) || "Normal")}</span>`));
     }
     box.appendChild(top);
-    box.appendChild(el("div", "d-type", esc(d.type === "monster" ? `[${d.race} / ${d.subtype === "fusion" ? "Fusion" : "Normal"}]` : typeLine(d))));
+    box.appendChild(el("div", "d-type", esc(d.type === "monster" ? `[${d.race} / ${monsterKind(d)}]` : typeLine(d))));
     box.appendChild(el("div", "d-text", esc(d.text)));
     // Variant choices (which tributes, which target, which materials).
     if (c.iid !== this.sel) return; // hover preview: no choices
@@ -431,7 +444,43 @@ export class DuelUI {
     // Never change mid-animation or while our action is in flight (the action list is stale then).
     if ((this.busy || this.sent) && !force) return;
     const acts = this.view && this.decider === this.view.you ? this.actions : [];
-    $("guide-body").textContent = guideMessage(this.view, acts, this.decider, this.sel, this.choose);
+    const body = $("guide-body");
+    body.innerHTML = `<div class="g-text">${esc(guideMessage(this.view, acts, this.decider, this.sel, this.choose))}</div>`;
+    const h = this.activeHint();
+    if (!h) return;
+    // Advice only: "Show me" selects the card so the player can see the option; it never plays it.
+    const box = el("div", "g-hint", `<div class="g-hint-title">★ Suggested play</div><div class="g-hint-label">${esc(h.label)}</div>${h.why ? `<div class="g-hint-why">${esc(h.why)}</div>` : ""}`);
+    const show = el("button", "g-show", h.card && this.isMine(h.card) ? "Show me" : PHASE_HINT[h.kind] || "");
+    if (show.textContent) {
+      show.onclick = () => this.showHint(h);
+      box.appendChild(show);
+    }
+    body.appendChild(box);
+  }
+
+  activeHint() {
+    if (!settings.get("guide") || !settings.get("guideHints") || !this.hint || !this.myTurnToAct() || this.busy || this.sent) return null;
+    return this.hint;
+  }
+
+  isMine(iid) {
+    const mine = this.view.players[this.view.you];
+    return (mine.hand || []).some((c) => c.iid === iid) || mine.monsters.some((m) => m && m.iid === iid) || mine.st.some((c) => c && c.iid === iid);
+  }
+
+  showHint(h) {
+    audio.play("ui_click");
+    if (h.card && this.isMine(h.card)) {
+      this.sel = h.card;
+      const variants = this.selActions().filter((a) => a.kind === h.kind);
+      this.choose = variants.length > 1 ? h.kind : null;
+      this.render();
+      if (h.target) this.stage.highlights.set(h.target, "target");
+      return;
+    }
+    // Phase moves: point at the turn medallion.
+    const m = $("medallion");
+    m.classList.remove("hint-pulse"); void m.offsetWidth; m.classList.add("hint-pulse");
   }
 
   // ------------------------------------------------------------- input
@@ -500,6 +549,14 @@ export class DuelUI {
       case "LIFE_POINTS_CHANGED": text = `${who(ev.player)} ${ev.delta < 0 ? "took" : "gained"} <b>${Math.abs(ev.delta)}</b> (LP ${ev.lp}).`; break;
       case "FIELD_SPELL_ACTIVATED": text = `The field became ${nm(ev.cid)}.`; break;
       case "EFFECT_EXPIRED": text = `${nm(ev.cid)} faded away.`; break;
+      case "MONSTER_EFFECT": text = `${nm(ev.cid)}'s effect: ${esc(ev.text || "activated")}.`; break;
+      case "EQUIP_ATTACHED": text = `${nm(ev.cid)} was equipped to ${nm(cidOf(ev.target))} (+${ev.atk} ATK${ev.defense ? `, +${ev.defense} DEF` : ""}).`; break;
+      case "MONSTER_BOOSTED": text = `${nm(ev.cid)} gained <b>${ev.amount}</b> ATK this turn.`; break;
+      case "CARD_DESTROYED": text = `${ev.was_face_up ? nm(ev.cid) : `A Set ${nm(ev.cid)}`} was destroyed.`; cls = ev.player === me ? "me" : "opp"; break;
+      case "SPELL_NEGATED": text = `${nm(ev.cid)} was negated!`; cls = ev.player === me ? "me" : "opp"; break;
+      case "CARD_ADDED_TO_HAND": text = `${who(ev.player)} added ${nm(ev.cid)} from the Deck to the hand.`; break;
+      case "FIELD_SPELL_REMOVED": if (ev.reason !== "destroyed") return; text = `${nm(ev.cid)} was destroyed.`; break;
+      case "CARD_DRAWN": if (ev.reason !== "refill") return; text = `${who(ev.player)} refilled the hand to 4 cards.`; break;
       case "DUEL_WON": text = `${ev.player === me ? "You win" : `${esc(v.players[ev.player].name)} wins`}!`; cls = "turn"; break;
       default: return;
     }

@@ -7,17 +7,22 @@ import os
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SHARED = os.path.join(ROOT, "shared")
 
-MIN_DECK = 20
-MAX_DECK = 40
+MIN_DECK = 40
+MAX_DECK = 60
 MAX_EXTRA = 15
 MAX_COPIES = 3
+FUSION_MIN_LEVEL = 7  # Fusion Monsters are always Level 7 or higher
 
 
 def load_db(path: str | None = None) -> dict:
     path = path or os.path.join(SHARED, "cards.json")
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    return {c["id"]: c for c in data["cards"]}
+    db = {c["id"]: c for c in data["cards"]}
+    for c in db.values():
+        if c.get("subtype") == "fusion" and c["level"] < FUSION_MIN_LEVEL:
+            raise ValueError(f"{c['name']}: Fusion Monsters must be Level {FUSION_MIN_LEVEL} or higher")
+    return db
 
 
 def load_decks(path: str | None = None) -> dict:
@@ -46,8 +51,9 @@ def validate_deck(db: dict, deck: dict, profile: str) -> list:
             problems.append(f"{card['name']} is not legal under this ruleset.")
         counts[cid] = counts.get(cid, 0) + 1
     for cid, n in counts.items():
-        if n > MAX_COPIES:
-            problems.append(f"At most {MAX_COPIES} copies of {db[cid]['name']}.")
+        limit = db[cid].get("limit", MAX_COPIES)
+        if n > limit:
+            problems.append(f"At most {limit} {'copy' if limit == 1 else 'copies'} of {db[cid]['name']}.")
     for cid in main:
         if db.get(cid, {}).get("subtype") == "fusion":
             problems.append(f"{db[cid]['name']} belongs in the Extra Deck.")
