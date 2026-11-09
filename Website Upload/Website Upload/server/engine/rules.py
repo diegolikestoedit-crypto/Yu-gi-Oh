@@ -62,6 +62,7 @@ class Duel:
         self.profile = PROFILES[profile]
         self.rng = random.Random(seed)
         self.events = []
+        self._special_log = []
         self.state = {
             "profile": profile,
             "turn": 0,
@@ -93,7 +94,9 @@ class Duel:
                 pl["deck"].append(self._new_card(cid, p, "deck", used))
             for cid in deck.get("extra", []):
                 pl["extra"].append(self._new_card(cid, p, "extra", used))
-        self.first = first if first is not None else self.rng.randrange(2)
+        # No fixed first player means a coin toss: its winner chooses to go first or second.
+        self.coin = first is None
+        self.first = first if first is not None else None
 
     # ------------------------------------------------------------------ setup
 
@@ -114,10 +117,20 @@ class Duel:
 
     def start(self):
         self._emit("DUEL_STARTED", first=self.first, profile=self.profile["id"])
+        if self.coin:
+            winner = self.rng.randrange(2)
+            self._emit("COIN_FLIP", result="heads" if winner == 0 else "tails", winner=winner,
+                       calls={"heads": 0, "tails": 1})
+            self.state["pending"] = {"kind": "turn_order", "player": winner}
+            return self.take_events()
+        self._open(self.first)
+        return self.take_events()
+
+    def _open(self, first):
+        self.first = first
         for p in (0, 1):
             self._draw(p, STARTING_HAND, reason="opening")
-        self._begin_turn(self.first)
-        return self.take_events()
+        self._begin_turn(first)
 
     # ---------------------------------------------------------------- helpers
 
@@ -159,6 +172,10 @@ class Duel:
                 for m in op.get("modifiers", []):
                     if m.get("attribute") and m["attribute"] != d.get("attribute"):
                         continue
+                    if m.get("max_level") and d.get("level", 99) > m["max_level"]:
+                        continue
+                    if m.get("owner_only") and card.get("controller", card["owner"]) != state["cards"][f]["owner"]:
+                        continue
                     if m.get("race") and m["race"] != d.get("race"):
                         continue
                     atk += m.get("atk", 0)
@@ -174,6 +191,9 @@ class Duel:
                                 dfn += op.get("def", 0)
             if card["counters"].get("boost_turn") == state["turn"]:
                 atk += card["counters"].get("boost_atk", 0)
+            if d.get("atk_per_gy"):
+                ctrl = state["players"][card.get("controller", card["owner"])]
+                atk += d["atk_per_gy"] * sum(1 for g in ctrl["gy"] if self.db[state["cards"][g]["cid"]]["type"] == "monster")
         return max(0, atk), max(0, dfn)
 
     def _free_slot(self, row):
@@ -201,6 +221,9 @@ class Duel:
     def _to_gy(self, iid):
         self._remove(iid)
         card = self.c(iid)
+        if self.data(iid).get("token"):
+            card.update(zone="gone", face_up=True, position=None)  # Tokens cease to exist off the field
+            return
         card.update(zone="gy", face_up=True, position=None)
         self.pl(card["owner"])["gy"].append(iid)
 
@@ -247,7 +270,7 @@ class Duel:
         for iid in self._monsters(p):
             self.c(iid).update(attacked=False, pos_changed=False)
         for iid in self._all_monsters():
-            for k in ("boost_turn", "boost_atk"):
+            for k in ("boost_turn", "boost_atk", "attacked_once"):
                 self.c(iid)["counters"].pop(k, None)
         self._emit("TURN_STARTED", player=p, turn=st["turn"])
         self._set_phase("draw")
@@ -260,6 +283,27 @@ class Duel:
         if short > 0:
             self._draw(p, short, reason="refill")
         self._set_phase("standby")
+        for owner in (0, 1):
+            for iid in list(self.pl(owner)["st"]):
+                if iid is None or not self.c(iid)["face_up"]:
+                    continue
+                for op in self.data(iid)["effect"]["ops"]:
+                    if op["op"] != "drain_standby":
+                        continue
+                    hits = op.get("target", "opp") == "both" or owner != p
+                    if not hits:
+                        continue
+                    self._emit("CONTINUOUS_EFFECT", iid=iid, cid=self.c(iid)["cid"], player=owner, target=p)
+                    self._change_lp(p, -op["amount"], "drain")
+                    if op.get("heal") and owner != p and st["winner"] is None:
+                        self._change_lp(owner, op["heal"], "drain")
+                    if st["winner"] is not None:
+                        return
+        for iid in list(self._monsters(p)):
+            if self.c(iid)["face_up"]:
+                self._monster_effect(iid, "standby")
+                if st["winner"] is not None:
+                    return
         self._set_phase("main1")
 
     def _draw(self, p, n, reason="draw"):
@@ -301,6 +345,22 @@ class Duel:
     def _end_turn(self):
         p = self.state["active"]
         self.state["battle"] = None
+        for iid in list(self._all_monsters()):
+            c = self.c(iid)
+            home = c["counters"].get("borrowed")
+            if home is None:
+                continue
+            slot = self._free_slot(self.pl(home)["monsters"])
+            from_slot, from_player = c["slot"], self._controller(iid)
+            if slot is None:
+                self._destroy(iid, "effect")
+                continue
+            position = c["position"]
+            self._remove(iid)
+            c["controller"] = home
+            self._place_monster(iid, home, slot, position, True)
+            self._emit("CONTROL_CHANGED", iid=iid, cid=c["cid"], player=home, from_player=from_player, slot=slot,
+                       from_slot=from_slot, returned=True)
         self._set_phase("end")
         self._continue_end_phase()
 
@@ -349,11 +409,15 @@ class Duel:
                 for i in self._response_quickplays(p):
                     for v in self._spell_variants(p, i):
                         acts.append(self._a("quick:" + i + v["suffix"], "activate_quick", i, v["label"], **v.get("extra", {})))
+                for i in self._hand_ambushes(p, pend):
+                    acts.append(self._a("hand:" + i, "hand_summon", i, f"Summon {self.data(i)['name']} from your hand"))
                 acts.append(self._a("pass", "pass", None, "Don't respond"))
                 return acts
             if pend["kind"] == "discard":
                 return [self._a("discard:" + i, "discard", i, f"Discard {self.data(i)['name']}")
                         for i in self.pl(p)["hand"]]
+            if pend["kind"] == "turn_order":
+                return [self._a("first", "go_first", None, "Go first"), self._a("second", "go_second", None, "Go second")]
             if pend["kind"] == "choice":
                 acts = [self._a("choose:" + i, "choose", i, f"Special Summon {self.data(i)['name']}")
                         for i in pend["options"] if self.c(i)["zone"] == "hand"]
@@ -385,6 +449,8 @@ class Duel:
                     to = "def" if card["position"] == "atk" else "atk"
                     acts.append(self._a("pos:" + iid, "change_position", iid,
                                         f"Switch to {'Defense' if to == 'def' else 'Attack'} Position", position=to))
+            for i in self._main_traps(p):
+                acts.append(self._a("trap:" + i, "activate_trap", i, f"Activate {self.data(i)['name']}"))
             if phase == "main1" and st["turn"] > 1:
                 acts.append(self._a("battle", "enter_battle", None, "Enter Battle Phase"))
         elif phase == "battle":
@@ -400,6 +466,9 @@ class Duel:
                             tc = self.c(t)
                             tname = self.data(t)["name"] if tc["face_up"] else "face-down monster"
                             acts.append(self._a(f"atk:{iid}:{t}", "attack", iid, f"{name} attacks {tname}", target=t))
+                        if self.data(iid).get("direct_attack"):
+                            acts.append(self._a(f"atk:{iid}:direct", "attack", iid,
+                                                f"{name} attacks directly (over their monsters)", target=None))
                     else:
                         acts.append(self._a(f"atk:{iid}:direct", "attack", iid, f"{name} attacks directly", target=None))
             acts += [a for a in self._spell_actions(p) if self.data(a["card"])["subtype"] == "quickplay"]
@@ -421,7 +490,7 @@ class Duel:
         free = self._free_slot(pl["monsters"]) is not None
         for iid in pl["hand"]:
             d = self.data(iid)
-            if d["type"] != "monster" or d.get("subtype") == "fusion":
+            if d["type"] != "monster" or d.get("subtype") in ("fusion", "ritual", "token"):
                 continue
             n = tributes_needed(self.profile, d["level"])
             if n == 0:
@@ -472,6 +541,31 @@ class Duel:
             out.append(list(combo))
         return out
 
+    def _ritual_variants(self, p, spell_iid):
+        """One way to Ritual Summon each Ritual monster in hand: the weakest offerings whose Levels add up."""
+        pl = self.pl(p)
+        out = []
+        for r in pl["hand"]:
+            rd = self.data(r)
+            if rd["type"] != "monster" or rd.get("subtype") != "ritual":
+                continue
+            pool = [i for i in pl["hand"] + self._monsters(p) if i not in (r, spell_iid) and self.data(i)["type"] == "monster"]
+            pool.sort(key=lambda i: (self.stats(i)[0] if self.c(i)["zone"] == "monster" else self.data(i)["atk"], i))
+            picked, total = [], 0
+            for i in pool:
+                if total >= rd["level"]:
+                    break
+                picked.append(i)
+                total += self.data(i)["level"]
+            if total < rd["level"]:
+                continue
+            if self._free_slot(pl["monsters"]) is None and not any(self.c(i)["zone"] == "monster" for i in picked):
+                continue
+            names = " + ".join(self.data(i)["name"] for i in picked)
+            out.append({"suffix": ":" + r, "label": f"{self.data(spell_iid)['name']}: offer {names} to summon {rd['name']}",
+                        "extra": {"target": r, "tributes": picked}})
+        return out
+
     def _ascend_options(self, p):
         """(fusion on the field, its Ascended form in the Extra Deck) pairs."""
         out = []
@@ -491,6 +585,8 @@ class Duel:
     def _spell_actions(self, p):
         pl = self.pl(p)
         acts = []
+        if self._locked(p, "lock_spells"):
+            return acts
         sources = [i for i in pl["hand"] if self.data(i)["type"] == "spell"]
         sources += [i for i in pl["st"] if i is not None and not self.c(i)["face_up"] and self.data(i)["type"] == "spell"]
         free_st = self._free_slot(pl["st"]) is not None
@@ -544,7 +640,7 @@ class Duel:
             seen = []
             for t in self.pl(p)["deck"]:
                 d2 = self.data(t)
-                if d2["type"] == "monster" and d2.get("subtype") != "fusion" and d2["level"] >= f.get("min_level", 7) \
+                if d2["type"] == "monster" and d2.get("subtype") not in ("fusion", "ritual") and d2["level"] >= f.get("min_level", 7) \
                         and d2["id"] not in seen:
                     seen.append(d2["id"])
             seen.sort(key=lambda c: -self.db[c]["atk"])
@@ -571,6 +667,51 @@ class Duel:
                     seen.append(cid)
             return [{"suffix": ":" + cid, "label": f"{name}: add {self.db[cid]['name']} to your hand",
                      "extra": {"search": cid}} for cid in sorted(seen, key=lambda c: self.db[c]["name"])]
+        if "special_two_from_deck" in kinds:
+            pl = self.pl(p)
+            f = next(o for o in ops if o["op"] == "special_two_from_deck").get("filter", {})
+            names = {self.c(i)["cid"] for i in pl["deck"] if self._matches(i, f, iid)}
+            free = sum(1 for z in pl["monsters"] if z is None)
+            return [{"suffix": "", "label": f"Activate {name}"}] if len(names) >= 2 and free >= 2 else []
+        if "tribute_for_best" in kinds:
+            pl = self.pl(p)
+            if len(self._monsters(p)) < 2:
+                return []
+            seen = []
+            for i in pl["hand"] + pl["deck"]:
+                d2 = self.data(i)
+                if d2["type"] == "monster" and d2["subtype"] in ("normal", "effect") and d2["level"] >= 7 and d2["id"] not in seen:
+                    seen.append(d2["id"])
+            seen.sort(key=lambda c: -self.db[c]["atk"])
+            low = sorted(self._monsters(p), key=lambda i: (self.stats(i)[0], i))[:2]
+            names = " + ".join(self.data(i)["name"] for i in low)
+            return [{"suffix": ":" + c, "label": f"{name}: tribute {names} to summon {self.db[c]['name']} ({self.db[c]['atk']} ATK)",
+                     "extra": {"search": c, "tributes": low}} for c in seen]
+        if "ritual_summon" in kinds:
+            return self._ritual_variants(p, iid)
+        if "summon_tokens" in kinds:
+            return [{"suffix": "", "label": f"Activate {name}"}] if self._free_slot(self.pl(p)["monsters"]) is not None else []
+        if "destroy_all_opp_st" in kinds:
+            q = self.opp(p)
+            has = any(i is not None for i in self.pl(q)["st"]) or self.pl(q)["field"]
+            return [{"suffix": "", "label": f"Activate {name}"}] if has else []
+        if "steal_strongest" in kinds:
+            ok = self._monsters(self.opp(p)) and self._free_slot(self.pl(p)["monsters"]) is not None
+            return [{"suffix": "", "label": f"Activate {name}"}] if ok else []
+        if "drain_standby" in kinds:
+            return [{"suffix": "", "label": f"Activate {name}"}]
+        if "lock_traps" in kinds or "lock_spells" in kinds:
+            return [{"suffix": "", "label": f"Activate {name}"}]
+        if "recover_gy" in kinds:
+            f = next(o for o in ops if o["op"] == "recover_gy").get("filter", {})
+            seen = []
+            for t in self.pl(p)["gy"]:
+                if self.c(t)["cid"] not in seen and self._matches(t, f, iid):
+                    seen.append(self.c(t)["cid"])
+            return [{"suffix": ":" + cid, "label": f"{name}: return {self.db[cid]['name']} to your hand",
+                     "extra": {"search": cid}} for cid in seen]
+        if "bounce_strongest_opp" in kinds:
+            return [{"suffix": "", "label": f"Activate {name}"}] if self._monsters(self.opp(p)) else []
         if "lock_attacks" in kinds or "field" in kinds:
             return [{"suffix": "", "label": f"Activate {name}"}]
         if "fusion_summon" in kinds:
@@ -589,11 +730,20 @@ class Duel:
     def _matches(self, iid, f, src=None):
         """Whether a card fits a search/summon filter such as {"max_level": 4, "attribute": "same"}."""
         d = self.data(iid)
-        if d["type"] != "monster" or d.get("subtype") == "fusion":
+        want = f.get("card_type", "monster")
+        if d["type"] != want:
+            return False
+        if f.get("combo") and not d.get("combo"):
+            return False
+        if want != "monster":
+            return True
+        if d.get("subtype") in ("fusion", "ascended", "token") or (d.get("subtype") == "ritual" and not f.get("ritual")):
             return False
         if "max_level" in f and d["level"] > f["max_level"]:
             return False
         if "max_atk" in f and d["atk"] > f["max_atk"]:
+            return False
+        if f.get("race") and d.get("race") != f["race"]:
             return False
         attr = f.get("attribute")
         if attr == "same" and src is not None:
@@ -603,6 +753,8 @@ class Duel:
         return True
 
     def _response_quickplays(self, p):
+        if self._locked(p, "lock_spells"):
+            return []
         return [i for i in self._set_cards(p) if self.data(i)["type"] == "spell"
                 and self.data(i)["subtype"] == "quickplay" and self.c(i)["turn_placed"] != self.state["turn"]]
 
@@ -632,15 +784,24 @@ class Duel:
             d = self.data(iid)
             if d["type"] != "trap" or card["turn_placed"] == self.state["turn"]:
                 continue
-            if d.get("trigger") not in (pend["trigger"], "any"):
+            trigs = d.get("trigger")
+            trigs = trigs if isinstance(trigs, list) else [trigs]
+            if pend["trigger"] == "main":
+                if not ({"any", "main"} & set(trigs)):
+                    continue
+            elif pend["trigger"] not in trigs and "any" not in trigs:
+                continue
+            if self._locked(p, "lock_traps"):
                 continue
             ops = [o["op"] for o in d["effect"]["ops"]]
             if "ascend" in ops and not self._ascend_options(p):
                 continue
+            if ("summon_tokens" in ops or "special_from_deck" in ops) and self._free_slot(self.pl(p)["monsters"]) is None:
+                continue
             if "revive_best" in ops and (self._free_slot(self.pl(p)["monsters"]) is None
                                          or not any(self.data(g)["type"] == "monster" for g in self.pl(p)["gy"])):
                 continue
-            if pend["trigger"] == "opp_summon":
+            if pend["trigger"] == "opp_summon" and "summoned" in pend:
                 cond = d.get("condition", {})
                 s = pend["summoned"]
                 if self.c(s)["zone"] != "monster":
@@ -663,6 +824,7 @@ class Duel:
         if action_id not in legal:
             raise RuleError("That action is not available right now.")
         a = legal[action_id]
+        self._special_log = []
         k = a["kind"]
         if k == "normal_summon":
             self._normal_summon(p, a["card"], face_up=True)
@@ -700,6 +862,13 @@ class Duel:
             self._after_summon(a["card"], "effect")
         elif k == "skip":
             self.state["pending"] = None
+        elif k in ("go_first", "go_second"):
+            self.state["pending"] = None
+            first = p if k == "go_first" else self.opp(p)
+            self._emit("TURN_ORDER_CHOSEN", player=p, first=first)
+            self._open(first)
+        elif k == "hand_summon":
+            self._hand_summon(p, a["card"])
         elif k == "pass":
             self._resolve_pending_pass()
         elif k == "discard":
@@ -708,7 +877,23 @@ class Duel:
             self._emit("CARD_DISCARDED", iid=a["card"], cid=card["cid"], player=p)
             self._continue_end_phase()
         self._drop_orphan_equips()
+        self._special_window()
         return self.take_events()
+
+    def _special_window(self):
+        """After an action that Special Summoned, the other player may answer the last of those summons
+        (Traps like Cataclysm Snare, or a hand ambush), just as they can answer a Normal Summon."""
+        log, self._special_log = self._special_log, []
+        if self.state["pending"] is not None or self.state["winner"] is not None:
+            return
+        for p, iid, method in reversed(log):
+            c = self.c(iid)
+            if c["zone"] == "monster" and c["face_up"] and self._controller(iid) == p:
+                q = self.opp(p)
+                pend = {"kind": "response", "player": q, "trigger": "opp_summon", "summoned": iid, "method": method, "post": True}
+                if self._can_respond(q, pend):
+                    self.state["pending"] = pend
+                return
 
     # -------------------------------------------------------------- summoning
 
@@ -757,7 +942,7 @@ class Duel:
         self._emit("POSITION_CHANGED", iid=iid, cid=card["cid"], player=card.get("controller", card["owner"]),
                    slot=card["slot"], position=position)
 
-    def _special_summon(self, p, iid, method):
+    def _special_summon(self, p, iid, method, position="atk"):
         pl = self.pl(p)
         slot = self._free_slot(pl["monsters"])
         from_zone = self.c(iid)["zone"]
@@ -766,16 +951,17 @@ class Duel:
         # Control moves to the summoning player; ownership is tracked for the Graveyard.
         card = self.c(iid)
         card["controller"] = p
-        self._place_monster(iid, p, slot, "atk", True)
+        self._place_monster(iid, p, slot, position, True)
+        self._special_log.append((p, iid, method))
         self._emit("MONSTER_SUMMONED", iid=iid, cid=card["cid"], player=p, slot=slot, method=method,
-                   position="atk", from_zone=from_zone, from_player=from_owner)
+                   position=position, from_zone=from_zone, from_player=from_owner)
 
     def _summon_done(self, p, iid, method):
         """A summon succeeded: the opponent may respond, then the monster's own effect resolves."""
         q = self.opp(p)
-        if self._set_cards(q) and self.state["winner"] is None:
-            self.state["pending"] = {"kind": "response", "player": q, "trigger": "opp_summon",
-                                     "summoned": iid, "method": method}
+        pend = {"kind": "response", "player": q, "trigger": "opp_summon", "summoned": iid, "method": method}
+        if self.state["winner"] is None and self._can_respond(q, pend):
+            self.state["pending"] = pend
             return
         self._after_summon(iid, method)
 
@@ -794,7 +980,7 @@ class Duel:
         c = self.c(iid)
         return c.get("controller", c["owner"])
 
-    def _monster_effect(self, iid, trigger, controller=None):
+    def _monster_effect(self, iid, trigger, controller=None, ctx=None):
         d = self.data(iid)
         eff = d.get("effect")
         if d["type"] != "monster" or not eff or eff.get("trigger") != trigger or self.state["winner"] is not None \
@@ -803,7 +989,7 @@ class Duel:
         p = self._controller(iid) if controller is None else controller
         self._emit("MONSTER_EFFECT", iid=iid, cid=d["id"], player=p, trigger=trigger, text=eff.get("label", ""))
         for op in eff["ops"]:
-            self._run_op(p, iid, op, {})
+            self._run_op(p, iid, op, dict(ctx or {}))
             if self.state["winner"] is not None:
                 return
 
@@ -845,9 +1031,9 @@ class Duel:
                    slot=card["slot"], target=a.get("target"), subtype=d["subtype"])
         # The opponent gets a chance to respond (a Counter Trap or a set Quick-Play) before it resolves.
         q = self.opp(p)
-        if self.state["pending"] is None and self._set_cards(q):
-            self.state["pending"] = {"kind": "response", "player": q, "trigger": "opp_spell",
-                                     "spell": iid, "activator": p, "action": dict(a)}
+        pend = {"kind": "response", "player": q, "trigger": "opp_spell", "spell": iid, "activator": p, "action": dict(a)}
+        if self.state["pending"] is None and self._can_respond(q, pend):
+            self.state["pending"] = pend
             return
         self._resolve_spell(p, a)
 
@@ -860,7 +1046,7 @@ class Duel:
             self._run_op(p, iid, op, a)
             if self.state["winner"] is not None:
                 return
-        if d["subtype"] in ("normal", "quickplay") and self.c(iid)["zone"] == "st":
+        if d["subtype"] in ("normal", "quickplay", "ritual") and self.c(iid)["zone"] == "st":
             slot = self.c(iid)["slot"]
             self._to_gy(iid)
             self._emit("SPELL_RESOLVED", iid=iid, cid=d["id"], player=p, slot=slot)
@@ -885,9 +1071,16 @@ class Duel:
         if t == "opp_attack":
             self._continue_attack()
         elif t == "opp_summon":
-            self._after_summon(pend["summoned"], pend["method"])
+            if not pend.get("post"):  # a Special Summon's own effects already resolved
+                self._after_summon(pend["summoned"], pend["method"])
         elif t == "opp_spell":
             self._resolve_spell(pend["activator"], pend["action"])
+        elif t == "opp_trap":
+            trap = pend["trap"]
+            if self.c(trap)["zone"] == "st":
+                self._resolve_trap(pend["activator"], trap, pend["ctx"], pend["outer"])
+            elif pend["outer"]:
+                self._finish_response(pend["outer"])
 
     def _activate_trap(self, p, iid):
         d = self.data(iid)
@@ -895,24 +1088,84 @@ class Duel:
         card["face_up"] = True
         pend = self.state["pending"]
         self.state["pending"] = None
-        ctx = {"trigger": pend["trigger"]}
-        if pend["trigger"] == "opp_attack":
+        trig = pend["trigger"] if pend else "main"
+        ctx = {"trigger": trig}
+        if trig == "opp_attack":
             ctx["attacker"] = self.state["battle"]["attacker"]
-        elif pend["trigger"] == "opp_spell":
+        elif trig == "opp_spell":
             ctx["spell"] = pend["spell"]
-        else:
+        elif trig == "opp_trap":
+            ctx["trap"] = pend["trap"]
+        elif trig == "opp_summon":
             ctx["summoned"] = pend["summoned"]
         self._emit("TRAP_ACTIVATED", iid=iid, cid=d["id"], player=p, slot=card["slot"], **ctx)
+        # The other player may answer a Trap with a Counter Trap of their own.
+        q = self.opp(p)
+        if self._set_cards(q) and self._eligible_traps(q, {"trigger": "opp_trap"}):
+            self.state["pending"] = {"kind": "response", "player": q, "trigger": "opp_trap", "trap": iid,
+                                     "activator": p, "outer": pend, "ctx": ctx}
+            return
+        self._resolve_trap(p, iid, ctx, pend)
+
+    def _resolve_trap(self, p, iid, ctx, outer):
+        d = self.data(iid)
         for op in d["effect"]["ops"]:
             self._run_op(p, iid, op, ctx)
             if self.state["winner"] is not None:
                 return
-        if self.c(iid)["zone"] == "st":
+        # Continuous Traps stay face-up while their effect lasts.
+        if self.c(iid)["zone"] == "st" and d["subtype"] != "continuous":
             slot = self.c(iid)["slot"]
             self._to_gy(iid)
             self._emit("TRAP_RESOLVED", iid=iid, cid=d["id"], player=p, slot=slot)
-        if self.state["winner"] is None:
-            self._finish_response(pend)
+        if self.state["winner"] is None and outer:
+            self._finish_response(outer)
+
+    def _locked(self, p, op_name):
+        """Whether the opponent of p has a face-up card stopping p from using that kind of card."""
+        for i in self.pl(self.opp(p))["st"]:
+            if i is None or not self.c(i)["face_up"]:
+                continue
+            if any(op["op"] == op_name for op in self.data(i)["effect"]["ops"]) and self.c(i)["counters"].get("turns_left", 0) > 0:
+                return True
+        return False
+
+    def _hand_ambushes(self, p, pend):
+        """Monsters in hand that can leap onto the field in answer to this move of the opponent."""
+        if self._free_slot(self.pl(p)["monsters"]) is None:
+            return []
+        out = []
+        for i in self.pl(p)["hand"]:
+            ht = self.data(i).get("hand_trigger")
+            if ht and ht["trigger"] == pend["trigger"]:
+                out.append(i)
+        return out
+
+    def _hand_summon(self, p, iid):
+        d = self.data(iid)
+        ht = d["hand_trigger"]
+        pend = self.state["pending"]
+        self.state["pending"] = None
+        self._emit("HAND_TRAP", iid=iid, cid=d["id"], player=p, trigger=pend["trigger"], text=ht.get("label", ""))
+        self._special_summon(p, iid, "ambush", position=ht.get("position", "atk"))
+        ctx = {"trigger": pend["trigger"], "summoned": pend.get("summoned"), "spell": pend.get("spell"), "last_summoned": iid}
+        for op in ht.get("ops", []):
+            self._run_op(p, iid, op, ctx)
+            if self.state["winner"] is not None:
+                return
+        self._finish_response(pend)
+
+    def _can_respond(self, q, pend):
+        """Open a response window only when q holds a Set card or a hand ambush that could answer."""
+        if self._eligible_traps(q, pend) or self._hand_ambushes(q, pend):
+            return True
+        return any(self._spell_variants(q, i) for i in self._response_quickplays(q))
+
+    def _main_traps(self, p):
+        """Set Traps usable on your own Main Phase (trigger "any"/"main"), from the turn after they were Set."""
+        if self._locked(p, "lock_traps"):
+            return []
+        return self._eligible_traps(p, {"trigger": "main"})
 
     def _destroy(self, iid, reason, by=None):
         card = self.c(iid)
@@ -941,6 +1194,24 @@ class Duel:
         else:
             self._emit("CARD_DESTROYED", iid=iid, cid=card["cid"], player=player, slot=slot, zone=z,
                        reason=reason, by=by, was_face_up=was_face_up)
+
+    def _bounce(self, iid, by=None):
+        """Return a monster to its owner's hand (Fusion and Ascended monsters go back to the Extra Deck)."""
+        card = self.c(iid)
+        controller = self._controller(iid)
+        slot = card["slot"]
+        owner = card["owner"]
+        self._remove(iid)
+        if self.data(iid).get("token"):
+            card.update(zone="gone", face_up=True, position=None)
+            self._emit("MONSTER_BOUNCED", iid=iid, cid=card["cid"], player=controller, owner=owner, slot=slot, to="gone", by=by)
+            return
+        extra = self.data(iid).get("subtype") in ("fusion", "ascended")
+        zone = "extra" if extra else "hand"
+        card.update(zone=zone, face_up=False, position=None)
+        self.pl(owner)[zone].append(iid)
+        self._emit("MONSTER_BOUNCED", iid=iid, cid=card["cid"], player=controller, owner=owner, slot=slot, to=zone, by=by)
+        self._drop_orphan_equips()
 
     def _drop_orphan_equips(self):
         """Equip Spells whose monster has left the field are destroyed."""
@@ -971,6 +1242,108 @@ class Duel:
             if self.c(t)["zone"] == "gy" and self._free_slot(self.pl(p)["monsters"]) is not None:
                 self._special_summon(p, t, "revive")
                 self._after_summon(t, "revive")
+        elif kind in ("lock_traps", "lock_spells"):
+            self.c(src)["counters"]["turns_left"] = op["turns"]
+            self._emit("EFFECT_APPLIED", iid=src, cid=self.c(src)["cid"], player=p, effect=kind, turns_left=op["turns"])
+        elif kind == "special_two_from_deck":
+            pl = self.pl(p)
+            picked, names = [], set()
+            for i in sorted(pl["deck"], key=lambda i: (-self.data(i).get("atk", 0), i)):
+                if len(picked) == op.get("count", 2):
+                    break
+                if self._matches(i, op.get("filter", {}), src) and self.c(i)["cid"] not in names:
+                    picked.append(i)
+                    names.add(self.c(i)["cid"])
+            for i in picked:
+                if self._free_slot(pl["monsters"]) is None:
+                    break
+                self._special_summon(p, i, "effect")
+                self.c(i)["attacked"] = True  # called this turn: they can't attack yet
+            self.rng.shuffle(pl["deck"])
+            for i in picked:
+                if self.c(i)["zone"] == "monster":
+                    self._after_summon(i, "effect")
+        elif kind == "tribute_for_best":
+            pl = self.pl(p)
+            want = ctx.get("search")
+            tributes = sorted(self._monsters(p), key=lambda i: (self.stats(i)[0], i))[:2]
+            pool = [i for i in pl["hand"] + pl["deck"] if self.c(i)["cid"] == want] if want else []
+            if len(tributes) == 2 and pool:
+                t = pool[0]
+                self._emit("TRIBUTE_SUMMON_STARTED", iid=t, cid=self.c(t)["cid"], player=p,
+                           tributes=[{"iid": x, "cid": self.c(x)["cid"], "slot": self.c(x)["slot"]} for x in tributes])
+                for x in tributes:
+                    c = self.c(x)
+                    slot = c["slot"]
+                    self._to_gy(x)
+                    self._emit("MONSTER_TRIBUTED", iid=x, cid=c["cid"], player=p, slot=slot)
+                self._drop_orphan_equips()
+                from_deck = self.c(t)["zone"] == "deck"
+                self._special_summon(p, t, "tribute")
+                if from_deck:
+                    self.rng.shuffle(pl["deck"])
+                self._after_summon(t, "tribute")
+        elif kind == "summon_tokens":
+            pl = self.pl(p)
+            for _ in range(op.get("count", 1)):
+                slot = self._free_slot(pl["monsters"])
+                if slot is None:
+                    break
+                t = self._new_card(op["cid"], p, None, set(self.state["cards"]))
+                self.c(t)["controller"] = p
+                self._place_monster(t, p, slot, op.get("position", "def"), True)
+                self._emit("MONSTER_SUMMONED", iid=t, cid=op["cid"], player=p, slot=slot, method="token",
+                           position=op.get("position", "def"), from_zone=None, from_player=p)
+        elif kind == "redirect_attack":
+            b = self.state["battle"]
+            t = ctx.get("last_summoned") or src
+            if b and t and self.c(t)["zone"] == "monster" and not b["negated"]:
+                b["target"] = t
+                self._emit("ATTACK_REDIRECTED", attacker=b["attacker"], target=t, player=p)
+        elif kind == "weaken_summoned":
+            t = ctx.get("summoned")
+            if t and self.c(t)["zone"] == "monster":
+                cn = self.c(t)["counters"]
+                if cn.get("boost_turn") != self.state["turn"]:
+                    cn["boost_atk"] = 0
+                cn["boost_turn"] = self.state["turn"]
+                cn["boost_atk"] -= op["atk"]
+                self._emit("MONSTER_BOOSTED", iid=t, cid=self.c(t)["cid"], player=self._controller(t), amount=-op["atk"], by=src)
+        elif kind == "destroy_attacker":
+            b = self.state["battle"]
+            if b and self.c(b["attacker"])["zone"] == "monster":
+                b["negated"] = True
+                self._destroy(b["attacker"], "effect", by=src)
+        elif kind == "steal_strongest":
+            mons = self._monsters(q)
+            slot = self._free_slot(self.pl(p)["monsters"])
+            if mons and slot is not None:
+                t = max(mons, key=lambda i: (self.stats(i)[0], i))
+                c = self.c(t)
+                from_slot = c["slot"]
+                face_up, position = True, c["position"] or "atk"
+                self._remove(t)
+                self._drop_orphan_equips()
+                c["controller"] = p
+                self._place_monster(t, p, slot, position, face_up)
+                c["counters"]["borrowed"] = q  # goes home in the End Phase
+                self._emit("CONTROL_CHANGED", iid=t, cid=c["cid"], player=p, from_player=q, slot=slot, from_slot=from_slot, by=src)
+        elif kind == "drain_standby":
+            pass  # a continuous card: it works every Standby Phase while face-up
+        elif kind == "ritual_summon":
+            r = ctx.get("target")
+            tributes = [i for i in ctx.get("tributes", []) if self.c(i)["zone"] in ("hand", "monster")]
+            if r and self.c(r)["zone"] == "hand" and sum(self.data(i)["level"] for i in tributes) >= self.data(r)["level"]:
+                info = [{"iid": i, "cid": self.c(i)["cid"], "from_zone": self.c(i)["zone"], "slot": self.c(i)["slot"]} for i in tributes]
+                self._emit("RITUAL_STARTED", player=p, result=r, result_cid=self.c(r)["cid"], tributes=info)
+                for i in tributes:
+                    self._to_gy(i)
+                self._drop_orphan_equips()
+                if self._free_slot(self.pl(p)["monsters"]) is not None:
+                    self._special_summon(p, r, "ritual")
+                    self._after_summon(r, "ritual")
+        elif kind == "gain_victim_atk":
+            self._change_lp(p, ctx.get("victim_atk", 0), "effect")
         elif kind == "lock_attacks":
             self.c(src)["counters"]["turns_left"] = op["turns"]
             self._emit("EFFECT_APPLIED", iid=src, cid=self.c(src)["cid"], player=p, effect="lock_attacks",
@@ -1058,7 +1431,7 @@ class Duel:
             if want:
                 pool = [i for i in pool if self.c(i)["cid"] == want]
             if pool:
-                t = max(pool, key=lambda i: self.data(i)["atk"]) if not want else pool[0]
+                t = max(pool, key=lambda i: self.data(i).get("atk", 0)) if not want else pool[0]
                 pl["deck"].remove(t)
                 self.c(t).update(zone="hand")
                 pl["hand"].append(t)
@@ -1069,11 +1442,12 @@ class Duel:
             pool = [i for i in pl["deck"] if self._matches(i, op.get("filter", {}), src)]
             if pool and self._free_slot(pl["monsters"]) is not None:
                 t = max(pool, key=lambda i: (self.data(i)["atk"], i))
-                self._special_summon(p, t, "effect")
+                self._special_summon(p, t, "effect", position=op.get("position", "atk"))
+                ctx["last_summoned"] = t
                 self.rng.shuffle(pl["deck"])
                 self._after_summon(t, "effect")
         elif kind == "negate_spell":
-            sp = ctx.get("spell")
+            sp = ctx.get("spell") or ctx.get("trap")
             if sp and self.c(sp)["zone"] in ("st", "field"):
                 c = self.c(sp)
                 slot = c["slot"]
@@ -1102,7 +1476,8 @@ class Duel:
         elif kind == "summon_best_from_deck":
             pl = self.pl(p)
             want = ctx.get("search")
-            pool = [i for i in pl["deck"] if self.data(i)["type"] == "monster" and self.data(i)["level"] >= op.get("filter", {}).get("min_level", 7)]
+            pool = [i for i in pl["deck"] if self.data(i)["type"] == "monster" and self.data(i)["subtype"] != "ritual"
+                    and self.data(i)["level"] >= op.get("filter", {}).get("min_level", 7)]
             if want:
                 pool = [i for i in pool if self.c(i)["cid"] == want]
             if pool and self._free_slot(pl["monsters"]) is not None:
@@ -1118,6 +1493,33 @@ class Duel:
                 t = max(pool, key=lambda i: (self.stats(i)[0], i))
                 self._special_summon(p, t, "revive")
                 self._after_summon(t, "revive")
+        elif kind == "recover_gy":
+            pl = self.pl(p)
+            pool = [i for i in pl["gy"] if self._matches(i, op.get("filter", {}), src) and i != src]
+            want = ctx.get("search")
+            if want:
+                pool = [i for i in pool if self.c(i)["cid"] == want]
+            if pool:
+                t = max(pool, key=lambda i: (self.data(i)["atk"], i))
+                pl["gy"].remove(t)
+                self.c(t).update(zone="hand", face_up=False, position=None)
+                pl["hand"].append(t)
+                self._emit("CARD_ADDED_TO_HAND", iid=t, cid=self.c(t)["cid"], player=p, from_zone="gy", by=src)
+        elif kind in ("bounce_strongest_opp", "bounce_attacker"):
+            if kind == "bounce_attacker":
+                b = self.state["battle"]
+                t = b["attacker"] if b and self.c(b["attacker"])["zone"] == "monster" else None
+                if t and b:
+                    b["negated"] = True
+            else:
+                mons = self._monsters(q)
+                t = max(mons, key=lambda i: (self.stats(i)[0], i)) if mons else None
+            if t:
+                self._bounce(t, by=src)
+        elif kind == "gain_attacker_atk":
+            b = self.state["battle"]
+            if b and self.c(b["attacker"])["zone"] == "monster":
+                self._change_lp(p, self.stats(b["attacker"])[0], "effect")
         elif kind == "destroy_all_opp_st":
             pl = self.pl(q)
             for i in [i for i in pl["st"] if i is not None] + ([pl["field"]] if pl["field"] else []):
@@ -1143,13 +1545,18 @@ class Duel:
     # ----------------------------------------------------------------- battle
 
     def _declare_attack(self, p, attacker, target):
-        self.c(attacker)["attacked"] = True
+        c = self.c(attacker)
+        if self.data(attacker).get("double_attack") and not c["counters"].get("attacked_once"):
+            c["counters"]["attacked_once"] = True  # it may attack a second time this Battle Phase
+        else:
+            c["attacked"] = True
         self.state["battle"] = {"attacker": attacker, "target": target, "negated": False}
         self._emit("ATTACK_DECLARED", attacker=attacker, target=target, player=p,
                    direct=target is None)
         q = self.opp(p)
-        if self._set_cards(q):
-            self.state["pending"] = {"kind": "response", "player": q, "trigger": "opp_attack"}
+        pend = {"kind": "response", "player": q, "trigger": "opp_attack"}
+        if self._can_respond(q, pend):
+            self.state["pending"] = pend
         else:
             self._continue_attack()
 
@@ -1205,17 +1612,22 @@ class Duel:
                     damage = {"player": q, "amount": a_atk - t_def, "piercing": True}
             elif a_atk < t_def:
                 damage = {"player": p, "amount": t_def - a_atk}
+        destroyed_shown = [i for i in destroyed if not self.data(i).get("battle_indestructible")]
         self._emit("ATTACK_RESOLVED", attacker=a, target=t, direct=False, player=p, attacker_value=a_atk,
-                   target_value=t_val, target_position=tc["position"], destroyed=destroyed, damage=damage)
+                   target_value=t_val, target_position=tc["position"], destroyed=destroyed_shown, damage=damage)
         self._emit("MONSTER_DAMAGED", iid=t, survived=t not in destroyed, by=a)
         if a in destroyed or (damage and damage["player"] == p):
             self._emit("MONSTER_DAMAGED", iid=a, survived=a not in destroyed, by=t, recoil=True)
         if damage and damage["amount"] > 0:
             self._change_lp(damage["player"], -damage["amount"], "battle")
+        destroyed = [i for i in destroyed if not self.data(i).get("battle_indestructible")]
         owners = {iid: self._controller(iid) for iid in destroyed}
+        victim_atk = self.data(t).get("atk", 0)
         for iid in destroyed:
             if self.c(iid)["zone"] == "monster":
                 self._destroy(iid, "battle")
+        if t in destroyed and a not in destroyed and self.c(a)["zone"] == "monster" and self.state["winner"] is None:
+            self._monster_effect(a, "destroys_by_battle", ctx={"victim_atk": victim_atk})
         # Flip effects resolve after damage calculation, even if the monster was destroyed.
         if flipped:
             self._monster_effect(flipped, "flip", controller=q)
@@ -1235,6 +1647,8 @@ class Duel:
             out = {"iid": iid, "face_up": card["face_up"], "position": card["position"], "slot": card["slot"]}
             if reveal or card["face_up"]:
                 out["cid"] = card["cid"]
+                if card["zone"] == "st" and not card["face_up"]:
+                    out["set_turn"] = card["turn_placed"] == state["turn"]
                 if card["zone"] == "monster":
                     atk, dfn = self.stats(iid, state)
                     out.update(atk=atk, defense=dfn)
@@ -1283,7 +1697,7 @@ class Duel:
             "winner": state["winner"],
             "win_reason": state["win_reason"],
             "pending": {"kind": pend["kind"], "player": pend["player"], "trigger": pend.get("trigger"),
-                        "card": pend.get("summoned") or pend.get("spell"), "text": pend.get("text")} if pend else None,
+                        "card": pend.get("summoned") or pend.get("spell") or pend.get("trap"), "text": pend.get("text")} if pend else None,
             "battle": {"attacker": b["attacker"], "target": b["target"]} if b else None,
             "env": field_env[0] if field_env else None,
             "players": players,

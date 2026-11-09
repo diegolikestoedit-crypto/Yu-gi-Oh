@@ -458,3 +458,6 @@ kbd { font-family: var(--pixel); font-size: 12px; padding: 2px 7px; border-radiu
 @keyframes hintPulse { 0% { box-shadow: 0 0 0 0 rgba(122, 232, 255, .9); } 100% { box-shadow: 0 0 0 26px rgba(122, 232, 255, 0); } }
 /* The guide sits in the bottom-right corner and grows upward, clear of the turn medallion. */
 .guide { bottom: 14px; width: 286px; max-height: 330px; overflow: auto; }
+/* ---- v8: 14 duelists ---- */
+.deck-head .role-filter { margin-left: auto; }
+.deck-head .role-filter button { padding: 5px 10px; font-size: 12px; }

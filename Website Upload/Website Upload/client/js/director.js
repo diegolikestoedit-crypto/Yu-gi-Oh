@@ -5,7 +5,7 @@ import { audio } from "./audio.js";
 import { cardCanvas, cardBack, CARD_W, CARD_H } from "./render/cardart.js";
 import {
   MagicCircle, Pillar, Portal, Beam, Bolt, Projectile, Ring, Slash, Dome, Cylinder, Sinkhole, Vortex, TextPop, CardFlash,
-  Shatter, Cracks,
+  Shatter, Cracks, Coin,
 } from "./render/fx.js";
 import { W } from "./render/stage.js";
 import { proj, Z } from "./render/board.js";
@@ -96,6 +96,110 @@ export class Director {
   burst(x, y, n, o) { this.stage.particles.burst(x, y, Math.round(n * (this.stage.quality === "low" ? 0.4 : 1)), o); }
 
   // ---------------------------------------------------------------- flow
+  // The coin toss: heads is the first duelist, tails the second; the winner then chooses who starts.
+  async COIN_FLIP(ev) {
+    this.apply(ev.view);
+    const v = ev.view, you = v.you;
+    const name = (p) => v.players[p].name;
+    const colors = [0, 1].map((p) => (this.ui.seatColors && this.ui.seatColors[p]) || (p === 0 ? "#5cc8ff" : "#ff6a8a"));
+    const faces = [0, 1].map((p) => [colors[p], "#3a2a10"]);
+    this.ui.banner("Coin toss", `Heads: ${name(0)} · Tails: ${name(1)}`, "#f4cf6a", true);
+    audio.play("whoosh");
+    const c = this.stage.boardCenter();
+    this.stage.add(new Coin({ x: c.x, y: c.y - 40, life: 2.6, colors: faces, winnerFace: ev.winner, letters: [name(0)[0] || "H", name(1)[0] || "T"], top: false }));
+    await this.wait(2.05);
+    audio.play("impact");
+    this.burst(c.x, c.y - 40, 40, { color: ["#f4cf6a", "#ffffff"], kind: "spark", speed: [120, 380], life: [0.3, 0.7] });
+    const won = ev.winner === you;
+    this.ui.banner(won ? "You won the toss!" : `${name(ev.winner)} won the toss`, ev.result === "heads" ? "Heads" : "Tails", won ? "#6dffa8" : "#ff9a5a");
+    audio.play(won ? "summon" : "phase");
+    await this.wait(0.9);
+  }
+
+  async TURN_ORDER_CHOSEN(ev) {
+    this.apply(ev.view);
+    const v = ev.view;
+    const who = ev.player === v.you ? "You" : v.players[ev.player].name;
+    const firstName = ev.first === v.you ? "you" : v.players[ev.first].name;
+    this.ui.banner(`${firstName === "you" ? "You go" : firstName + " goes"} first`, `${who} chose`, "#f4cf6a", true);
+    await this.wait(0.8);
+  }
+
+  async HAND_TRAP(ev) {
+    const c = cardData(ev.cid);
+    const side = this.side(ev.player);
+    const from = this.stage.handPos(ev.player);
+    audio.play("activate_trap");
+    this.stage.flash("#7ae8ff", 0.3, 0.3);
+    this.stage.add(new CardFlash({ img: cardCanvas(ev.cid), x: from.x, y: from.y - 160, w: 150, life: 1.1, rise: 120, glow: "#7ae8ff", top: true }));
+    this.ui.banner(c.name, "Ambush from the hand!", "#7ae8ff", true);
+    await this.wait(0.7);
+    this.apply(ev.view);
+  }
+
+  async ATTACK_REDIRECTED(ev) {
+    const t = this.pointOf(ev.target, ev.view);
+    const a = this.pointOf(ev.attacker, ev.view);
+    audio.play("barrier");
+    this.stage.add(new Beam({ from: a, to: t, color: "#7ae8ff", width: 6, life: 0.5 }));
+    this.ui.banner("Attack redirected", cardData(ev.view.players.flatMap((p) => p.monsters).find((m) => m && m.iid === ev.target)?.cid || "")?.name || "", "#7ae8ff", true);
+    this.apply(ev.view);
+    await this.wait(0.5);
+  }
+
+  async CONTROL_CHANGED(ev) {
+    const c = cardData(ev.cid);
+    audio.play(ev.returned ? "whoosh" : "negate");
+    this.ui.banner(c.name, ev.returned ? "Returns to its owner" : "Control taken!", "#e07aff", true);
+    const a = this.stage.actor(ev.iid);
+    if (a) { a.flash = 0.6; this.burst(a.center().x, a.center().y, 30, { color: ["#e07aff", "#ffffff"], speed: [60, 240], life: [0.3, 0.7] }); }
+    this.apply(ev.view);
+    await this.wait(0.8);
+  }
+
+  async CONTINUOUS_EFFECT(ev) {
+    const p = this.stage.cardPos(ev.iid, ev.view);
+    const c = cardData(ev.cid);
+    const col = (c.visual && c.visual.palette && c.visual.palette.b) || "#ff5a8a";
+    audio.play("activate_trap");
+    this.stage.add(new MagicCircle({ x: p.x, y: p.y, r: 70, color: col, color2: "#ffffff", life: 0.8, points: 6, squash: 0.45 }));
+    const lp = this.lpPoint(ev.target);
+    this.stage.add(new Projectile({ from: { x: p.x, y: p.y }, to: lp, life: 0.5, color: col, size: 8, particles: this.stage.particles }));
+    this.ui.banner(c.name, "drains Life Points", col, true);
+    await this.wait(0.5);
+    this.apply(ev.view);
+  }
+
+  async RITUAL_STARTED(ev) {
+    const side = this.side(ev.player);
+    const sc = this.stage.sideCenter(side);
+    const c = { x: sc.x, y: sc.y - 100 };
+    this.ui.banner("Ritual Summon", cardData(ev.result_cid).name, "#7aa8ff");
+    await this.stage.focus(c.x, c.y + 60, 1.1, 0.5);
+    await this.stage.setDim(0.4, 0.3, "#000820");
+    this.stage.add(new MagicCircle({ x: c.x, y: c.y + 100, r: 200, color: "#7aa8ff", color2: "#ffffff", life: 2.4, points: 8, squash: 0.4 }));
+    audio.play("charge", { dur: 1.2 });
+    for (const m of ev.tributes) {
+      const a = this.stage.actor(m.iid);
+      if (a && !a.hidden) {
+        a.keep = true; a.engaged = true;
+        this.stage.tween(a.offset, { x: c.x - a.home.x, y: c.y - a.home.y + 80 }, 0.9, "in");
+        this.stage.tween(a, { grow: 0.2, alpha: 0 }, 0.9, "in");
+      } else {
+        const from = this.stage.handPos(ev.player);
+        this.stage.add(new Projectile({ from: { x: from.x, y: from.y - 200 }, to: c, life: 0.9, color: "#7aa8ff", size: 9, particles: this.stage.particles }));
+      }
+    }
+    await this.wait(1.0);
+    for (const m of ev.tributes) { const a = this.stage.actor(m.iid); if (a) { a.keep = false; a.hidden = true; } }
+    this.stage.add(new Pillar({ x: c.x, y: c.y + 100, w: 140, h: 700, color: "#9fc0ff", life: 1.2 }));
+    this.stage.flash("#dfe8ff", 0.6, 0.4);
+    audio.play("summon_epic");
+    await this.wait(0.4);
+    this.apply(ev.view);
+    this.stage.setDim(0, 0.5);
+  }
+
   async DUEL_STARTED(ev) {
     this.apply(ev.view);
     this.stage.env.set(ev.view.env || this.stage.baseEnv);
@@ -109,7 +213,7 @@ export class Director {
   async CARD_DRAWN(ev) {
     this.apply(ev.view);
     audio.play("card_draw");
-    await this.wait(ev.reason === "opening" ? 0.35 : 0.3);
+    await this.wait(ev.reason === "opening" ? 0.3 : 0.18);
   }
 
   async TURN_STARTED(ev) {
@@ -117,7 +221,7 @@ export class Director {
     const mine = this.side(ev.player) === 0;
     this.ui.banner(mine ? "Your Turn" : `${ev.view.players[ev.player].name}'s Turn`, `Turn ${ev.turn}`, mine ? "#5cc8ff" : "#ff6a8a");
     audio.play("turn");
-    await this.wait(1.0);
+    await this.wait(0.75);
   }
 
   async PHASE_CHANGED(ev) {
@@ -125,7 +229,7 @@ export class Director {
     if (ev.phase === "battle") {
       this.ui.banner("Battle Phase", "", "#ff9a5a", true);
       audio.play("phase");
-      await this.wait(0.6);
+      await this.wait(0.45);
     } else if (ev.phase === "draw" || ev.phase === "standby") {
       await this.wait(0.12);
     } else {
@@ -447,6 +551,13 @@ export class Director {
   }
 
   async EFFECT_APPLIED(ev) {
+    if (ev.effect === "lock_traps" || ev.effect === "lock_spells") {
+      const p = this.stage.cardPos(ev.iid);
+      audio.play("negate");
+      this.stage.add(new MagicCircle({ x: p.x, y: p.y, r: 120, color: "#9fb8ff", color2: "#ffffff", life: 1.2, points: 8, squash: 0.45 }));
+      this.ui.banner(ev.effect === "lock_traps" ? "Traps sealed" : "Spells sealed", `${ev.turns_left} turns`, "#9fb8ff", true);
+      await this.wait(0.8);
+    }
     if (ev.effect === "lock_attacks") {
       const lockedSide = 1 - this.side(ev.player);
       audio.play("barrier");
@@ -934,11 +1045,38 @@ export class Director {
 
   async CARD_ADDED_TO_HAND(ev) {
     const side = this.side(ev.player);
-    const deck = this.stage.pilePos(side, "deck");
-    audio.play("card_draw");
-    this.stage.add(new CardFlash({ img: cardCanvas(ev.cid), x: deck.x, y: deck.y - 80, w: 120, life: 1.1, rise: 40, glow: "#7ae8ff" }));
-    this.ui.banner(cardData(ev.cid).name, "Added from the Deck", "#7ae8ff", true);
+    const fromGy = ev.from_zone === "gy";
+    const pile = this.stage.pilePos(side, fromGy ? "gy" : "deck");
+    const col = fromGy ? "#9fffb0" : "#7ae8ff";
+    audio.play(fromGy ? "revive" : "card_draw");
+    this.stage.add(new CardFlash({ img: cardCanvas(ev.cid), x: pile.x, y: pile.y - 80, w: 120, life: 1.1, rise: 40, glow: col }));
+    if (fromGy) this.burst(pile.x, pile.y, 24, { color: [col, "#ffffff"], speed: [40, 160], life: [0.4, 0.9], lift: -60 });
+    this.ui.banner(cardData(ev.cid).name, fromGy ? "Returned from the Graveyard" : "Added from the Deck", col, true);
     await this.wait(0.9);
+    this.apply(ev.view);
+  }
+
+  // A monster is swept off the field back to its owner's hand (or Extra Deck): it spins up, shrinks and flies off.
+  async MONSTER_BOUNCED(ev) {
+    const a = this.stage.actor(ev.iid);
+    const side = this.side(ev.player);
+    const ownerSide = this.side(ev.owner);
+    const dest = ev.to === "extra" ? this.stage.pilePos(ownerSide, "extra") : { x: W / 2, y: ownerSide === 0 ? 980 : -80 };
+    audio.play("whoosh");
+    this.ui.banner(cardData(ev.cid).name, ev.to === "extra" ? "Returned to the Extra Deck" : "Returned to the hand", "#9fe8ff", true);
+    if (a && !a.hidden) {
+      a.keep = true; a.engaged = true; a.flash = 0.6;
+      const c = a.center();
+      this.stage.add(new Ring({ x: a.home.x, y: a.home.y, r0: 20, r1: 120 * a.home.s, color: "#9fe8ff", life: 0.5, squash: 0.35, width: 5 }));
+      this.burst(c.x, c.y, 26, { color: ["#9fe8ff", "#ffffff"], kind: "spark", speed: [80, 260], life: [0.3, 0.6] });
+      this.stage.tween(a, { grow: 0.25, alpha: 0 }, 0.6, "in");
+      await this.stage.tween(a.offset, { x: dest.x - a.home.x, y: dest.y - a.home.y }, 0.6, "in");
+      a.keep = false; a.hidden = true;
+    } else {
+      const z = this.stage.zonePos(side, ev.slot);
+      this.stage.add(new Projectile({ from: { x: z.x, y: z.y }, to: dest, life: 0.5, color: "#9fe8ff", size: 8, particles: this.stage.particles }));
+      await this.wait(0.5);
+    }
     this.apply(ev.view);
   }
 

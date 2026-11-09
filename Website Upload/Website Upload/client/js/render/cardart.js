@@ -14,6 +14,8 @@ const FRAMES = {
   effect: ["#d8743a", "#6e2a0e"],
   fusion: ["#a46be0", "#3e1d6b"],
   ascended: ["#f2dc8c", "#7a5414"],
+  ritual: ["#5a8ae0", "#1a2e6a"],
+  token: ["#a8a8b0", "#4a4a52"],
   spell: ["#2bb59d", "#0d4f47"],
   trap: ["#cf3a72", "#5a0f2e"],
 };

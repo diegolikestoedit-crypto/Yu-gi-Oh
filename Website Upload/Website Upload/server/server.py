@@ -190,8 +190,8 @@ class Server:
     async def start_duel(self, room: Room):
         decks = [DECKS[s.deck] for s in room.seats]
         showcase = {i: DECKS[s.deck].get("signature") for i, s in enumerate(room.seats)} if room.showcase else None
-        room.duel = Duel(DB, decks, [s.name for s in room.seats], profile=room.profile,
-                         first=0 if room.showcase else None, showcase=showcase)
+        # A coin toss decides who chooses to go first or second.
+        room.duel = Duel(DB, decks, [s.name for s in room.seats], profile=room.profile, first=None, showcase=showcase)
         room.state = "duel"
         room.ai = DuelAI(1, room.difficulty) if room.solo else None
         events = room.duel.start()
@@ -213,7 +213,7 @@ class Server:
         if room.bot_task and not room.bot_task.done():
             return
         # Long enough for the last move's animations to play, short enough that nobody waits on an idle board.
-        delay = min(3.0, 0.6 + 0.3 * n_events) * BOT_PACE
+        delay = min(2.4, 0.45 + 0.22 * n_events) * BOT_PACE
         room.bot_task = asyncio.ensure_future(self.bot_move(room, delay))
 
     async def bot_move(self, room: Room, delay: float):

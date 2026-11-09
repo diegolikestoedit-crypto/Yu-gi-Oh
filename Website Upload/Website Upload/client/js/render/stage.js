@@ -372,7 +372,7 @@ export class Stage {
   }
 
   // A card lying on the board, foreshortened; rotated for Defense Position.
-  boardCard(ctx, z, cid, faceUp, rotated, highlight, lift = 0) {
+  boardCard(ctx, z, cid, faceUp, rotated, highlight, lift = 0, setTag = false) {
     const img = faceUp && cid ? cardCanvas(cid) : cardBack();
     const w = CARD_W * z.s, h = CARD_H * z.s;
     ctx.save();
@@ -384,6 +384,17 @@ export class Stage {
     ctx.scale(1, FORE);
     if (rotated) ctx.rotate(Math.PI / 2);
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    if (setTag) {
+      // Face-down but yours: the face stays readable under a dark veil with a SET ribbon.
+      ctx.fillStyle = "rgba(8,14,40,.42)"; ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.strokeStyle = "rgba(160,190,255,.8)"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(-w / 2 + 2, -h / 2 + 2, w - 4, h - 4); ctx.setLineDash([]);
+      const bh = 22 * (w / 80);
+      ctx.fillStyle = "rgba(20,30,70,.9)"; ctx.fillRect(-w / 2, -bh / 2, w, bh);
+      const label = typeof setTag === "string" ? setTag : "SET";
+      ctx.fillStyle = label === "SET" ? "#cfe0ff" : "#ffd27a";
+      ctx.font = `900 ${Math.round(bh * (label === "SET" ? 0.62 : 0.46))}px 'Nunito Sans', system-ui`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(label, 0, 1);
+    }
     if (highlight) {
       // Pulsing outline glow drawn as strokes (blurring the whole card image every frame was the costly part).
       const pulse = 0.8 + Math.sin(this.time * 6) * 0.2;
@@ -453,7 +464,11 @@ export class Stage {
       pl.st.forEach((c, slot) => {
         if (!c) return;
         const z = stZone(side, slot);
-        this.boardCard(ctx, z, c.cid, c.face_up, false, this.highlights.get(c.iid));
+        // Your own Set cards show their face (darkened, tagged SET); the opponent's stay hidden.
+        const ownSet = !c.face_up && side === 0 && c.cid;
+        // Traps and Quick-Plays Set this turn can't be used yet: the tag says so.
+        const waits = ownSet && c.set_turn && (cardData(c.cid).type === "trap" || cardData(c.cid).subtype === "quickplay");
+        this.boardCard(ctx, z, c.cid, c.face_up || !!ownSet, false, this.highlights.get(c.iid), 0, ownSet ? (waits ? "NEXT TURN" : "SET") : false);
         if (c.counters && c.counters.turns_left) {
           ctx.save(); ctx.fillStyle = "#ffe58a"; ctx.font = `900 ${Math.round(16 * z.s)}px 'Nunito Sans'`; ctx.textAlign = "center";
           ctx.lineWidth = 4; ctx.strokeStyle = "#000"; ctx.strokeText(String(c.counters.turns_left), z.x + 30 * z.s, z.y - 30 * z.s);
@@ -466,12 +481,8 @@ export class Stage {
         const a = this.actors.get(m.iid);
         if (a && (a.hidden || a.mat < 0.05)) return; // still materialising: the card arrives with the figure
         const faceUp = m.face_up && !!m.cid;
-        this.boardCard(ctx, z, faceUp ? m.cid : (side === 0 ? m.cid : null), faceUp, m.position === "def", this.highlights.get(m.iid));
-        if (!faceUp && side === 0 && m.cid) {
-          ctx.save(); ctx.globalAlpha = 0.55; this.boardCard(ctx, z, m.cid, true, true, null); ctx.restore();
-          ctx.save(); ctx.font = `800 ${Math.round(11 * z.s)}px 'Nunito Sans'`; ctx.textAlign = "center"; ctx.fillStyle = "#cfe0ff";
-          ctx.fillText("SET", z.x, z.y + (CARD_H * z.s * FORE) / 2 + 2); ctx.restore();
-        }
+        const ownSet = !faceUp && side === 0 && !!m.cid;
+        this.boardCard(ctx, z, m.cid, faceUp || ownSet, m.position === "def", this.highlights.get(m.iid), 0, ownSet ? "SET" : false);
         if (faceUp) this.statLabel(ctx, z, m, side);
       });
     }

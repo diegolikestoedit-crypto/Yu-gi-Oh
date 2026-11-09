@@ -551,3 +551,35 @@ export class Cracks extends Effect {
     ctx.restore();
   }
 }
+
+// The opening coin toss: it rises spinning, shows each duelist's face as it turns, and lands on the winner's.
+export class Coin extends Effect {
+  draw(ctx) {
+    const p = this.p;
+    const land = 0.78;
+    const k = Math.min(1, p / land);
+    const spins = 7;
+    const angle = k < 1 ? k * spins * Math.PI * 2 : (this.winnerFace === 0 ? 0 : Math.PI);
+    const rise = Math.sin(Math.min(1, k) * Math.PI) * 220;
+    const r = 70 * (1 + Math.sin(Math.min(1, k) * Math.PI) * 0.25);
+    const sx = Math.cos(angle);
+    const face = sx >= 0 ? 0 : 1;
+    const [c0, c1] = face === 0 ? this.colors[0] : this.colors[1];
+    const a = p < 0.08 ? p / 0.08 : p > 0.94 ? (1 - p) / 0.06 : 1;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(this.x, this.y - rise);
+    // shadow on the board
+    ctx.save(); ctx.translate(0, rise + 40); ctx.globalAlpha = a * 0.35; ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.ellipse(0, 0, r * (1 - rise / 400), r * 0.25, 0, 0, TAU); ctx.fill(); ctx.restore();
+    ctx.scale(Math.max(0.04, Math.abs(sx)), 1);
+    const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 4, 0, 0, r);
+    g.addColorStop(0, "#fffbe8"); g.addColorStop(0.5, c0); g.addColorStop(1, c1);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = "#f4cf6a"; ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle = "rgba(60,40,10,.6)"; ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, TAU); ctx.stroke();
+    ctx.fillStyle = "#2a1a08"; ctx.font = `900 ${Math.round(r * 0.9)}px Cinzel, Georgia, serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(this.letters[face], 0, 4);
+    ctx.restore();
+  }
+}

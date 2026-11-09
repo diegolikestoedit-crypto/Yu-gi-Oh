@@ -20,11 +20,13 @@ export const ATTR_COLORS = {
   EARTH: ["#e6cf9a", "#6b4f2a"],
 };
 
-const SUBTYPE = { quickplay: "Quick-Play", equip: "Equip", continuous: "Continuous", field: "Field", counter: "Counter" };
+const SUBTYPE = { quickplay: "Quick-Play", equip: "Equip", continuous: "Continuous", field: "Field", counter: "Counter", ritual: "Ritual" };
 
 // "Fusion / Effect", "Effect" or "Normal": the bracketed kind printed on monster cards.
 export function monsterKind(c) {
   if (c.subtype === "ascended") return "Ascended / Effect";
+  if (c.subtype === "ritual") return "Ritual / Effect";
+  if (c.subtype === "token") return "Token";
   if (c.subtype === "fusion") return c.effect || c.piercing ? "Fusion / Effect" : "Fusion";
   return c.subtype === "effect" ? "Effect" : "Normal";
 }

@@ -14,7 +14,7 @@ import { Environment } from "./render/env.js";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-const state = { screen: "menu", decks: [], profiles: {}, room: null, seat: null, inDuel: false, showingEnd: false, solo: false, pick: "me" };
+const state = { screen: "menu", decks: [], profiles: {}, room: null, seat: null, inDuel: false, showingEnd: false, solo: false, pick: "me", role: "" };
 const DIFFICULTIES = [["easy", "Easy"], ["normal", "Normal"], ["hard", "Hard"]];
 let stage, net, ui, director, showcase;
 let profileChoice = settings.get("lastProfile") || "citadel";
@@ -137,7 +137,7 @@ function renderArenas(room) {
   if (stage.baseEnv !== room.arena) { stage.baseEnv = room.arena; stage.env.transition(room.arena, 1.2, { x: 800, y: 450 }); }
 }
 
-const ROLES = [["hero", "Hero"], ["rival", "Rival"], ["friend", "Friends"], ["villain", "Villains"]];
+const ROLES = [["wildcard", "Wildcard"], ["hero", "Hero"], ["rival", "Rival"], ["friend", "Friends"], ["villain", "Villains"]];
 
 function renderDecks(me, room) {
   const bot = room && room.solo ? room.seats[1] : null;
@@ -145,7 +145,11 @@ function renderDecks(me, room) {
   const g = $("deck-gallery");
   g.innerHTML = "";
   const order = (d) => ROLES.findIndex(([r]) => r === (d.duelist && d.duelist.role));
-  const decks = [...state.decks].sort((a, b) => order(a) - order(b));
+  const decks = [...state.decks].sort((a, b) => order(a) - order(b)).filter((d) => !state.role || (d.duelist && d.duelist.role === state.role));
+  $("seg-role").querySelectorAll("button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.v === state.role);
+    b.onclick = () => { audio.play("ui_click"); state.role = b.dataset.v; renderLobby(); };
+  });
   for (const d of decks) {
     const du = d.duelist || { name: d.name, title: "", role: "", color: "#f4cf6a" };
     const n = deckCounts(d);
