@@ -107,6 +107,27 @@ class DuelAI:
 
     # --------------------------------------------------------------- responses
 
+    def s_go_first(self, a):
+        return 10, "Go first: set up your field and Traps before your opponent can attack."
+
+    def s_go_second(self, a):
+        return 4, "Go second: you draw on your first turn and can attack right away."
+
+    def s_hand_summon(self, a):
+        iid = a["card"]
+        ht = self.d.data(iid)["hand_trigger"]
+        ops = [o["op"] for o in ht.get("ops", [])]
+        if "redirect_attack" in ops:
+            hurt, attacker = self.attack_hurts()
+            if not hurt:
+                return -5, ""
+            dfn = self.d.data(iid)["def"]
+            good = dfn >= attacker
+            return (55 if good else 30), f"Summon {self.name(iid)} from your hand: it jumps in front of the attack ({dfn} DEF)."
+        if "weaken_summoned" in ops:
+            return 40, f"Summon {self.name(iid)} from your hand: their new monster loses 1000 ATK this turn."
+        return 35, f"Summon {self.name(iid)} from your hand and draw a card."
+
     def s_pass(self, a):
         return 0, "Nothing here is worth spending a card on. Save your Set cards for a bigger threat."
 
@@ -137,6 +158,10 @@ class DuelAI:
                 return 50, f"Activate {nm} now: draw 2 cards."
             if "lock_spells" in ops:
                 return 40, f"Activate {nm}: your opponent can't use Spells for 3 turns."
+            if "drain_standby" in ops:
+                return 38, f"Activate {nm}: it drains your opponent every turn."
+            if "summon_tokens" in ops:
+                return 14, f"Activate {nm}: Tokens to protect you or to Tribute."
             if "ascend" in ops:
                 t, r = max(self.d._ascend_options(self.p), key=lambda o: self.d.data(o[1])["atk"])
                 return 80, f"Activate {nm}: {self.name(t)} ascends into {self.name(r)}."
@@ -150,6 +175,20 @@ class DuelAI:
             return 80, f"Spring {nm}: {self.name(t)} ascends into {self.name(r)} ({self.d.data(r)['atk']} ATK) right now."
         if "draw" in ops:
             return 35, f"Spring {nm}: draw 2 free cards."
+        if "drain_standby" in ops:
+            return 34, f"Spring {nm}: it burns your opponent's Life Points every turn from now on."
+        if "summon_tokens" in ops:
+            hurt, _ = self.attack_hurts() if pend["trigger"] == "opp_attack" else (True, 0)
+            return (36 if hurt else 18), f"Spring {nm}: put Shield Tokens in the way."
+        if "destroy_attacker" in ops:
+            hurt, attacker = self.attack_hurts()
+            return (30 + attacker / 80, f"Spring {nm}: destroy the attacker.") if hurt or attacker >= 1800 else (-5, "")
+        if "redirect_attack" in ops:
+            hurt, attacker = self.attack_hurts()
+            return (32, f"Spring {nm}: call a defender from your Deck to take the hit.") if hurt else (-5, "")
+        if "destroy_all_monsters" in ops:
+            mine, theirs = self.field_power(self.p), self.field_power(self.q)
+            return (50 + (theirs - mine) / 100, f"Spring {nm}: wipe the board while they're ahead.") if theirs > mine + 800 else (-5, "")
         if "bounce_attacker" in ops:
             hurt, attacker = self.attack_hurts()
             return (35 + attacker / 100, f"Spring {nm}: send the attacker back to their hand.") if hurt else (-5, "")
@@ -371,6 +410,26 @@ class DuelAI:
             if v < 2400 or (gain < 0 and v < self.opp_best_atk()):
                 return -5, ""
             return 60 + v / 100, f"Activate {nm}: Tribute the two weakest to summon {self.d.db[a['search']]['name']} ({v} ATK) straight from your hand or Deck."
+        if "ritual_summon" in ops:
+            r = a["target"]
+            v = self.d.data(r)["atk"]
+            cost = sum(self.atk(t) for t in a["tributes"] if self.d.c(t)["zone"] == "monster")
+            return 55 + (v - cost) / 80, f"Activate {nm}: offer {len(a['tributes'])} monsters to Ritual Summon {self.name(r)} ({v} ATK)."
+        if "summon_tokens" in ops:
+            if self.d.state["pending"]:
+                return 25, f"Use {nm}: Decoy Tokens soak up the attack."
+            return 8, ""
+        if "destroy_all_opp_st" in ops:
+            n = self.opp_set_count() + sum(1 for i in self.them["st"] if i and self.d.c(i)["face_up"])
+            return (40 + 10 * n, f"Activate {nm}: clear all {n} of their Spells and Traps before attacking.") if n >= 2 else (5, "")
+        if "steal_strongest" in ops:
+            th = max((self.threat(i) for i in self.d._monsters(self.q)), default=0)
+            ok = self.d.state["phase"] == "main1" and self.d.state["turn"] > 1
+            return (45 + th / 60, f"Activate {nm}: borrow their {th}-ATK monster and attack with it this turn.") if ok and th >= 1800 else (-5, "")
+        if "drain_standby" in ops:
+            both = any(o.get("target") == "both" for o in self.d.data(iid)["effect"]["ops"])
+            ahead = self.me["lp"] > self.them["lp"] + 1000
+            return (30, f"Activate {nm}: both players burn each turn, and you're ahead on Life Points.") if (not both or ahead) else (-10, "")
         if "lock_traps" in ops:
             return (40, f"Activate {nm}: your opponent has {self.opp_set_count()} Set cards; stop their Traps for 3 turns.") \
                 if self.opp_set_count() >= 2 else (6, "")
@@ -444,9 +503,14 @@ class DuelAI:
                 if own_attr == attr:
                     return -30, ""
             pool = self.d._monsters(self.p) + self.hand_monsters()
-            ours = sum(1 for i in pool if self.d.data(i).get("attribute") == attr)
-            theirs = sum(1 for i in self.d._monsters(self.q)
-                         if self.d.c(i)["face_up"] and self.d.data(i).get("attribute") == attr)
+            m0 = mods[0] if mods else {}
+            fits = (lambda i: self.d.data(i)["level"] <= m0["max_level"]) if m0.get("max_level") else \
+                (lambda i: self.d.data(i).get("race") == m0["race"]) if m0.get("race") else \
+                (lambda i: self.d.data(i).get("attribute") == attr)
+            ours = sum(1 for i in pool if fits(i))
+            if m0.get("max_level") and ours:
+                return 40 + 15 * ours, f"Activate {nm}: your {ours} tiny monsters become giants (+{m0['atk']} ATK)."
+            theirs = sum(1 for i in self.d._monsters(self.q) if self.d.c(i)["face_up"] and fits(i))
             return (18 + 14 * ours - 12 * theirs, f"Activate {nm}: it powers up {ours} of your {attr} monsters.") \
                 if ours else (-15, "")
         if "fusion_summon" in ops:

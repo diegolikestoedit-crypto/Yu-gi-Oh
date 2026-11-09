@@ -190,8 +190,8 @@ class Server:
     async def start_duel(self, room: Room):
         decks = [DECKS[s.deck] for s in room.seats]
         showcase = {i: DECKS[s.deck].get("signature") for i, s in enumerate(room.seats)} if room.showcase else None
-        room.duel = Duel(DB, decks, [s.name for s in room.seats], profile=room.profile,
-                         first=0 if room.showcase else None, showcase=showcase)
+        # A coin toss decides who chooses to go first or second.
+        room.duel = Duel(DB, decks, [s.name for s in room.seats], profile=room.profile, first=None, showcase=showcase)
         room.state = "duel"
         room.ai = DuelAI(1, room.difficulty) if room.solo else None
         events = room.duel.start()

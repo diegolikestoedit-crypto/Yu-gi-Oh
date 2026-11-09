@@ -5,7 +5,7 @@ import { audio } from "./audio.js";
 import { cardCanvas, cardBack, CARD_W, CARD_H } from "./render/cardart.js";
 import {
   MagicCircle, Pillar, Portal, Beam, Bolt, Projectile, Ring, Slash, Dome, Cylinder, Sinkhole, Vortex, TextPop, CardFlash,
-  Shatter, Cracks,
+  Shatter, Cracks, Coin,
 } from "./render/fx.js";
 import { W } from "./render/stage.js";
 import { proj, Z } from "./render/board.js";
@@ -96,6 +96,110 @@ export class Director {
   burst(x, y, n, o) { this.stage.particles.burst(x, y, Math.round(n * (this.stage.quality === "low" ? 0.4 : 1)), o); }
 
   // ---------------------------------------------------------------- flow
+  // The coin toss: heads is the first duelist, tails the second; the winner then chooses who starts.
+  async COIN_FLIP(ev) {
+    this.apply(ev.view);
+    const v = ev.view, you = v.you;
+    const name = (p) => v.players[p].name;
+    const colors = [0, 1].map((p) => (this.ui.seatColors && this.ui.seatColors[p]) || (p === 0 ? "#5cc8ff" : "#ff6a8a"));
+    const faces = [0, 1].map((p) => [colors[p], "#3a2a10"]);
+    this.ui.banner("Coin toss", `Heads: ${name(0)} · Tails: ${name(1)}`, "#f4cf6a", true);
+    audio.play("whoosh");
+    const c = this.stage.boardCenter();
+    this.stage.add(new Coin({ x: c.x, y: c.y - 40, life: 2.6, colors: faces, winnerFace: ev.winner, letters: [name(0)[0] || "H", name(1)[0] || "T"], top: false }));
+    await this.wait(2.05);
+    audio.play("impact");
+    this.burst(c.x, c.y - 40, 40, { color: ["#f4cf6a", "#ffffff"], kind: "spark", speed: [120, 380], life: [0.3, 0.7] });
+    const won = ev.winner === you;
+    this.ui.banner(won ? "You won the toss!" : `${name(ev.winner)} won the toss`, ev.result === "heads" ? "Heads" : "Tails", won ? "#6dffa8" : "#ff9a5a");
+    audio.play(won ? "summon" : "phase");
+    await this.wait(0.9);
+  }
+
+  async TURN_ORDER_CHOSEN(ev) {
+    this.apply(ev.view);
+    const v = ev.view;
+    const who = ev.player === v.you ? "You" : v.players[ev.player].name;
+    const firstName = ev.first === v.you ? "you" : v.players[ev.first].name;
+    this.ui.banner(`${firstName === "you" ? "You go" : firstName + " goes"} first`, `${who} chose`, "#f4cf6a", true);
+    await this.wait(0.8);
+  }
+
+  async HAND_TRAP(ev) {
+    const c = cardData(ev.cid);
+    const side = this.side(ev.player);
+    const from = this.stage.handPos(ev.player);
+    audio.play("activate_trap");
+    this.stage.flash("#7ae8ff", 0.3, 0.3);
+    this.stage.add(new CardFlash({ img: cardCanvas(ev.cid), x: from.x, y: from.y - 160, w: 150, life: 1.1, rise: 120, glow: "#7ae8ff", top: true }));
+    this.ui.banner(c.name, "Ambush from the hand!", "#7ae8ff", true);
+    await this.wait(0.7);
+    this.apply(ev.view);
+  }
+
+  async ATTACK_REDIRECTED(ev) {
+    const t = this.pointOf(ev.target, ev.view);
+    const a = this.pointOf(ev.attacker, ev.view);
+    audio.play("barrier");
+    this.stage.add(new Beam({ from: a, to: t, color: "#7ae8ff", width: 6, life: 0.5 }));
+    this.ui.banner("Attack redirected", cardData(ev.view.players.flatMap((p) => p.monsters).find((m) => m && m.iid === ev.target)?.cid || "")?.name || "", "#7ae8ff", true);
+    this.apply(ev.view);
+    await this.wait(0.5);
+  }
+
+  async CONTROL_CHANGED(ev) {
+    const c = cardData(ev.cid);
+    audio.play(ev.returned ? "whoosh" : "negate");
+    this.ui.banner(c.name, ev.returned ? "Returns to its owner" : "Control taken!", "#e07aff", true);
+    const a = this.stage.actor(ev.iid);
+    if (a) { a.flash = 0.6; this.burst(a.center().x, a.center().y, 30, { color: ["#e07aff", "#ffffff"], speed: [60, 240], life: [0.3, 0.7] }); }
+    this.apply(ev.view);
+    await this.wait(0.8);
+  }
+
+  async CONTINUOUS_EFFECT(ev) {
+    const p = this.stage.cardPos(ev.iid, ev.view);
+    const c = cardData(ev.cid);
+    const col = (c.visual && c.visual.palette && c.visual.palette.b) || "#ff5a8a";
+    audio.play("activate_trap");
+    this.stage.add(new MagicCircle({ x: p.x, y: p.y, r: 70, color: col, color2: "#ffffff", life: 0.8, points: 6, squash: 0.45 }));
+    const lp = this.lpPoint(ev.target);
+    this.stage.add(new Projectile({ from: { x: p.x, y: p.y }, to: lp, life: 0.5, color: col, size: 8, particles: this.stage.particles }));
+    this.ui.banner(c.name, "drains Life Points", col, true);
+    await this.wait(0.5);
+    this.apply(ev.view);
+  }
+
+  async RITUAL_STARTED(ev) {
+    const side = this.side(ev.player);
+    const sc = this.stage.sideCenter(side);
+    const c = { x: sc.x, y: sc.y - 100 };
+    this.ui.banner("Ritual Summon", cardData(ev.result_cid).name, "#7aa8ff");
+    await this.stage.focus(c.x, c.y + 60, 1.1, 0.5);
+    await this.stage.setDim(0.4, 0.3, "#000820");
+    this.stage.add(new MagicCircle({ x: c.x, y: c.y + 100, r: 200, color: "#7aa8ff", color2: "#ffffff", life: 2.4, points: 8, squash: 0.4 }));
+    audio.play("charge", { dur: 1.2 });
+    for (const m of ev.tributes) {
+      const a = this.stage.actor(m.iid);
+      if (a && !a.hidden) {
+        a.keep = true; a.engaged = true;
+        this.stage.tween(a.offset, { x: c.x - a.home.x, y: c.y - a.home.y + 80 }, 0.9, "in");
+        this.stage.tween(a, { grow: 0.2, alpha: 0 }, 0.9, "in");
+      } else {
+        const from = this.stage.handPos(ev.player);
+        this.stage.add(new Projectile({ from: { x: from.x, y: from.y - 200 }, to: c, life: 0.9, color: "#7aa8ff", size: 9, particles: this.stage.particles }));
+      }
+    }
+    await this.wait(1.0);
+    for (const m of ev.tributes) { const a = this.stage.actor(m.iid); if (a) { a.keep = false; a.hidden = true; } }
+    this.stage.add(new Pillar({ x: c.x, y: c.y + 100, w: 140, h: 700, color: "#9fc0ff", life: 1.2 }));
+    this.stage.flash("#dfe8ff", 0.6, 0.4);
+    audio.play("summon_epic");
+    await this.wait(0.4);
+    this.apply(ev.view);
+    this.stage.setDim(0, 0.5);
+  }
+
   async DUEL_STARTED(ev) {
     this.apply(ev.view);
     this.stage.env.set(ev.view.env || this.stage.baseEnv);

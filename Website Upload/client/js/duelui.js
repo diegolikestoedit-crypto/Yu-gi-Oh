@@ -323,11 +323,22 @@ export class DuelUI {
     p.classList.remove("hidden");
     if (pend.player !== v.you) {
       p.className = "prompt waiting";
-      p.textContent = pend.kind === "response" ? "Waiting for your opponent to respond…" : pend.kind === "choice" ? "Your opponent is choosing an effect…" : "Your opponent is discarding…";
+      p.textContent = pend.kind === "response" ? "Waiting for your opponent to respond…" : pend.kind === "choice" ? "Your opponent is choosing an effect…"
+        : pend.kind === "turn_order" ? "Your opponent won the coin toss and is choosing who goes first…" : "Your opponent is discarding…";
       return;
     }
     p.className = "prompt";
     if (pend.kind === "discard") { p.innerHTML = `<div class="p-title">Hand limit: choose a card in your hand to discard.</div>`; return; }
+    if (pend.kind === "turn_order") {
+      p.innerHTML = `<div class="p-title">You won the coin toss! Do you want to go first or second?</div><div class="p-btns"></div>`;
+      const btns = p.querySelector(".p-btns");
+      for (const a of this.actions) {
+        const b = el("button", "btn" + (a.kind === "go_first" ? " primary" : ""), esc(a.label));
+        b.onclick = () => this.send(a.id);
+        btns.appendChild(b);
+      }
+      return;
+    }
     if (pend.kind === "choice") {
       p.innerHTML = `<div class="p-title">${esc(pend.text || "Choose")}</div><div class="p-btns"></div>`;
       const btns = p.querySelector(".p-btns");
@@ -553,7 +564,7 @@ export class DuelUI {
     let text = null, cls = ev.player === me ? "me" : ev.player !== undefined ? "opp" : "";
     switch (ev.type) {
       case "TURN_STARTED": text = `Turn ${ev.turn} · ${ev.player === me ? "Your turn" : `${esc(v.players[ev.player].name)}'s turn`}`; cls = "turn"; break;
-      case "MONSTER_SUMMONED": text = `${who(ev.player)} ${{ tribute: "Tribute Summoned", fusion: "Fusion Summoned", revive: "revived", ascension: "Ascension Summoned", effect: "Special Summoned" }[ev.method] || "summoned"} ${nm(ev.cid)}.`; break;
+      case "MONSTER_SUMMONED": text = `${who(ev.player)} ${{ tribute: "Tribute Summoned", fusion: "Fusion Summoned", revive: "revived", ascension: "Ascension Summoned", effect: "Special Summoned", ritual: "Ritual Summoned", token: "created", ambush: "Special Summoned" }[ev.method] || "summoned"} ${nm(ev.cid)}.`; break;
       case "MONSTER_SET": text = `${who(ev.player)} Set a monster.`; break;
       case "CARD_SET": text = `${who(ev.player)} Set a card.`; break;
       case "MONSTER_FLIPPED": text = `${nm(ev.cid)} was flipped face-up.`; break;
@@ -567,6 +578,13 @@ export class DuelUI {
       case "EFFECT_EXPIRED": text = `${nm(ev.cid)} faded away.`; break;
       case "FUSION_SUMMON_STARTED": if (!ev.contact) return; text = `${who(ev.player)} combined ${ev.materials.map((m) => nm(m.cid)).join(" + ")}!`; break;
       case "ASCENSION_STARTED": text = `${who(ev.player)} offered ${nm(ev.material.cid)} to Ascend!`; cls = "turn"; break;
+      case "COIN_FLIP": text = `Coin toss: <b>${ev.result}</b> · ${ev.winner === me ? "you win" : `${esc(v.players[ev.winner].name)} wins`}.`; cls = "turn"; break;
+      case "TURN_ORDER_CHOSEN": text = `${who(ev.player)} chose for ${ev.first === me ? "you" : esc(v.players[ev.first].name)} to go first.`; break;
+      case "HAND_TRAP": text = `${who(ev.player)} ambushed from the hand with ${nm(ev.cid)}!`; break;
+      case "ATTACK_REDIRECTED": text = `The attack was redirected to ${nm(cidOf(ev.target))}.`; break;
+      case "CONTROL_CHANGED": text = ev.returned ? `${nm(ev.cid)} returned to its owner.` : `${who(ev.player)} took control of ${nm(ev.cid)}!`; break;
+      case "CONTINUOUS_EFFECT": text = `${nm(ev.cid)} drains ${who(ev.target)}.`; cls = ev.target === me ? "opp" : "me"; break;
+      case "RITUAL_STARTED": text = `${who(ev.player)} performed a Ritual Summon!`; cls = "turn"; break;
       case "MONSTER_EFFECT": text = `${nm(ev.cid)}'s effect: ${esc(ev.text || "activated")}.`; break;
       case "EQUIP_ATTACHED": text = `${nm(ev.cid)} was equipped to ${nm(cidOf(ev.target))} (+${ev.atk} ATK${ev.defense ? `, +${ev.defense} DEF` : ""}).`; break;
       case "MONSTER_BOOSTED": text = `${nm(ev.cid)} gained <b>${ev.amount}</b> ATK this turn.`; break;

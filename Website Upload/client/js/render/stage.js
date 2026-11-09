@@ -390,8 +390,10 @@ export class Stage {
       ctx.strokeStyle = "rgba(160,190,255,.8)"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeRect(-w / 2 + 2, -h / 2 + 2, w - 4, h - 4); ctx.setLineDash([]);
       const bh = 22 * (w / 80);
       ctx.fillStyle = "rgba(20,30,70,.9)"; ctx.fillRect(-w / 2, -bh / 2, w, bh);
-      ctx.fillStyle = "#cfe0ff"; ctx.font = `900 ${Math.round(bh * 0.62)}px 'Nunito Sans', system-ui`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("SET", 0, 1);
+      const label = typeof setTag === "string" ? setTag : "SET";
+      ctx.fillStyle = label === "SET" ? "#cfe0ff" : "#ffd27a";
+      ctx.font = `900 ${Math.round(bh * (label === "SET" ? 0.62 : 0.46))}px 'Nunito Sans', system-ui`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(label, 0, 1);
     }
     if (highlight) {
       // Pulsing outline glow drawn as strokes (blurring the whole card image every frame was the costly part).
@@ -464,7 +466,9 @@ export class Stage {
         const z = stZone(side, slot);
         // Your own Set cards show their face (darkened, tagged SET); the opponent's stay hidden.
         const ownSet = !c.face_up && side === 0 && c.cid;
-        this.boardCard(ctx, z, c.cid, c.face_up || !!ownSet, false, this.highlights.get(c.iid), 0, !!ownSet);
+        // Traps and Quick-Plays Set this turn can't be used yet: the tag says so.
+        const waits = ownSet && c.set_turn && (cardData(c.cid).type === "trap" || cardData(c.cid).subtype === "quickplay");
+        this.boardCard(ctx, z, c.cid, c.face_up || !!ownSet, false, this.highlights.get(c.iid), 0, ownSet ? (waits ? "NEXT TURN" : "SET") : false);
         if (c.counters && c.counters.turns_left) {
           ctx.save(); ctx.fillStyle = "#ffe58a"; ctx.font = `900 ${Math.round(16 * z.s)}px 'Nunito Sans'`; ctx.textAlign = "center";
           ctx.lineWidth = 4; ctx.strokeStyle = "#000"; ctx.strokeText(String(c.counters.turns_left), z.x + 30 * z.s, z.y - 30 * z.s);
@@ -478,7 +482,7 @@ export class Stage {
         if (a && (a.hidden || a.mat < 0.05)) return; // still materialising: the card arrives with the figure
         const faceUp = m.face_up && !!m.cid;
         const ownSet = !faceUp && side === 0 && !!m.cid;
-        this.boardCard(ctx, z, m.cid, faceUp || ownSet, m.position === "def", this.highlights.get(m.iid), 0, ownSet);
+        this.boardCard(ctx, z, m.cid, faceUp || ownSet, m.position === "def", this.highlights.get(m.iid), 0, ownSet ? "SET" : false);
         if (faceUp) this.statLabel(ctx, z, m, side);
       });
     }

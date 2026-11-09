@@ -137,7 +137,7 @@ function renderArenas(room) {
   if (stage.baseEnv !== room.arena) { stage.baseEnv = room.arena; stage.env.transition(room.arena, 1.2, { x: 800, y: 450 }); }
 }
 
-const ROLES = [["hero", "Hero"], ["rival", "Rival"], ["friend", "Friends"], ["villain", "Villains"]];
+const ROLES = [["wildcard", "Wildcard"], ["hero", "Hero"], ["rival", "Rival"], ["friend", "Friends"], ["villain", "Villains"]];
 
 function renderDecks(me, room) {
   const bot = room && room.solo ? room.seats[1] : null;

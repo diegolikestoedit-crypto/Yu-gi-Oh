@@ -107,6 +107,15 @@ class ServerSlice(unittest.TestCase):
             await a.send({"t": "ready", "ready": True})
             await b.send({"t": "ready", "ready": True})
 
+            # Coin toss: the winner chooses; whoever wins, Ana ends up going first.
+            ua = await a.latest_duel()
+            ub = await b.latest_duel()
+            self.assertEqual(ua["view"]["pending"]["kind"], "turn_order")
+            self.assertTrue(any(e["type"] == "COIN_FLIP" for e in ua["events"]))
+            if ua["decider"] == 0:
+                await a.send({"t": "act", "id": "first"})
+            else:
+                await b.send({"t": "act", "id": "second"})
             ua = await a.latest_duel()
             ub = await b.latest_duel()
             self.assertEqual(ua["view"]["active"], 0)
@@ -120,6 +129,9 @@ class ServerSlice(unittest.TestCase):
             ua, ub = await a.latest_duel(), await b.latest_duel()
             self.assertEqual([e["type"] for e in ub["events"]], ["MONSTER_SUMMONED"])
             self.assertEqual(ub["events"][0]["cid"], "LD-001")
+            if ub["decider"] == 1 and ub["view"]["pending"]:  # a hand ambush may answer the summon
+                await b.send({"t": "act", "id": "pass"})
+                ua, ub = await a.latest_duel(), await b.latest_duel()
             await a.send({"t": "act", "id": action(ua, "end_turn")})
             ua, ub = await a.latest_duel(), await b.latest_duel()
 
@@ -200,7 +212,7 @@ class ServerSolo(unittest.TestCase):
                 bot_acted = bot_acted or any(e.get("player") == 1 and e["type"] == "MONSTER_SUMMONED" for e in u["events"])
                 self.assertIsNone(u["view"]["players"][1]["hand"])
                 if u["decider"] == 0 and u["actions"]:
-                    pick = next((x for x in u["actions"] if x["kind"] in ("pass", "end_turn", "discard")), None)
+                    pick = next((x for x in u["actions"] if x["kind"] in ("pass", "end_turn", "discard", "go_first", "skip")), None)
                     if pick:
                         await a.send({"t": "act", "id": pick["id"]})
             self.assertTrue(bot_acted)

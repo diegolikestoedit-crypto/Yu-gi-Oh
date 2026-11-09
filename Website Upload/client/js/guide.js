@@ -31,6 +31,9 @@ export function guideMessage(view, actions, decider, sel, choose) {
       ? `${what} You have a Set card that can respond: use it now, or let it go.`
       : `${what} None of your Set cards can respond to this, so choose "Don't respond".`;
   }
+  if (pend && pend.kind === "turn_order") return "You won the coin toss. Going first lets you set up Traps before they attack; going second lets you draw and attack on your first turn.";
+  if (pend && pend.kind === "response" && actions.some((a) => a.kind === "hand_summon"))
+    return "A monster in your hand can ambush right now: summon it straight from your hand on your opponent's turn.";
   if (pend && pend.kind === "choice") return "Your monster's effect lets you Special Summon a Level 4 or lower monster from your hand. Pick one, or skip it.";
   if (decider === me && actions.some((a) => a.kind === "contact_fusion") && !sel)
     return "Combo ready! Two of your monsters on the field can Combine into a Fusion. Select one of them and press Combine.";
@@ -107,6 +110,11 @@ export function guideMessage(view, actions, decider, sel, choose) {
     }
     if (c && setCard) {
       if (forCard.some((a) => a.kind === "activate_spell")) return `You can activate your Set ${c.name} now.`;
+      const waits = setCard.set_turn && (c.type === "trap" || c.subtype === "quickplay");
+      if (waits) return `${c.name} was Set this turn. Set ${c.type === "trap" ? "Traps" : "Quick-Plays"} can be used from your opponent's next turn on.`;
+      if (c.type === "trap") return trapWhen(c);
+      if (c.subtype === "quickplay") return `${c.name} is ready: use it during your turn, or it will be offered when your opponent attacks, summons or plays a card it can answer.`;
+      if (c.type === "spell") return `${spellReason(c, view)} It stays Set until you can use it.`;
       if (forCard.some((a) => a.kind === "activate_trap")) return `${c.name} can be activated right now, on your own turn.`;
       if (c.type === "trap") return `${c.name} will offer to activate when its condition happens on your opponent's turn.`;
       return `${c.name} is waiting face-down.`;
@@ -157,4 +165,19 @@ function spellReason(c, view) {
   if (ops.includes("recover_gy")) return "There are no monsters in your Graveyard to take back.";
   if (view.players[me].st.every(Boolean)) return "Your Spell & Trap zones are full.";
   return "Its activation conditions aren't met right now.";
+}
+
+// When a Set Trap will be offered, in plain words.
+function trapWhen(c) {
+  const t = Array.isArray(c.trigger) ? c.trigger : [c.trigger];
+  const when = t.map((x) => ({
+    opp_attack: "when your opponent declares an attack",
+    opp_summon: "when your opponent summons a monster (Normal or Special)",
+    opp_spell: "when your opponent activates a Spell",
+    opp_trap: "when your opponent activates a Trap",
+    any: "on your own turn, or whenever your opponent attacks, summons or plays a card",
+    main: "during your own Main Phase",
+  }[x] || x)).join(", or ");
+  const cond = c.condition && c.condition.methods ? ` (only a ${c.condition.methods.join(" or ")} Summon${c.condition.min_atk ? ` of ${c.condition.min_atk}+ ATK` : ""})` : "";
+  return `${c.name} is ready. It will be offered ${when}${cond}: a prompt appears so you can spring it.`;
 }
